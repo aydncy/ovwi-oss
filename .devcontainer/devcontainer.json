@@ -1,5 +1,9 @@
 {
-  "name": "Dart Dev Container",
-  "image": "mcr.microsoft.com/devcontainers/dart:latest",
-  "remoteUser": "vscode"
+  "name": "Dart Environment",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/dart:1": {
+      "version": "latest"
+    }
+  }
 }
