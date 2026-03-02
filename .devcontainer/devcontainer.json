@@ -1,9 +1,4 @@
 {
-  "name": "Dart Environment",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers-community/features/dart-sdk:1": {
-      "version": "latest"
-    }
-  }
+  "name": "Base Ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu"
 }
