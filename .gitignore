@@ -31,6 +31,18 @@ analysis_benchmark.json
 # packages file containing multi-root paths
 .packages.generated
 
+# Runtime data
+ovwi_server/ovwi_chain.json
+ovwi_server/ovwi_anchor.log
+proof.json
+
+# Dart build
+.dart_tool/
+build/
+
+# IDE
+*.code-workspace
+
 # Flutter/Dart/Pub related
 **/doc/api/
 .dart_tool/
