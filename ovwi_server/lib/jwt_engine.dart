@@ -2,12 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
-late String privateKeyPem;
-late String publicKeyPem;
+late List<int> privateKeyBytes;
+late List<int> publicKeyBytes;
 
 void initJwt() {
-  privateKeyPem = File('ovwi_server/ovwi_ed25519.key').readAsStringSync();
-  publicKeyPem = File('ovwi_server/ovwi_ed25519.pub').readAsStringSync();
+  final privateB64 =
+      File('ovwi_server/private.b64').readAsStringSync().trim();
+  final publicB64 =
+      File('ovwi_server/public.b64').readAsStringSync().trim();
+
+  privateKeyBytes = base64Decode(privateB64);
+  publicKeyBytes = base64Decode(publicB64);
 }
 
 String generateJwt(String subject) {
@@ -18,13 +23,11 @@ String generateJwt(String subject) {
   });
 
   return jwt.sign(
-    EdDSAPrivateKey(privateKeyPem),
+    EdDSAPrivateKey(privateKeyBytes),
     algorithm: JWTAlgorithm.EdDSA,
   );
 }
 
 String getPublicKeyBase64Url() {
-  final publicKey = EdDSAPublicKey(publicKeyPem);
-  final raw = publicKey.bytes;
-  return base64UrlEncode(raw).replaceAll('=', '');
+  return base64UrlEncode(publicKeyBytes).replaceAll('=', '');
 }
