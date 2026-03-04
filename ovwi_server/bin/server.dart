@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
@@ -7,6 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../lib/db.dart';
 import '../lib/jwt_engine.dart';
 import '../lib/stripe_webhook.dart';
+import '../../lib/jwks.dart';
 
 Future<void> main() async {
   initDb();
@@ -20,6 +22,17 @@ Future<void> main() async {
 
   router.get('/health', (Request req) {
     return Response.ok('OVWI running');
+  });
+
+  // JWKS endpoint
+  router.get('/.well-known/jwks.json', (Request req) {
+    final publicKey = getPublicKeyBase64Url();
+    final jwks = buildJwks(publicKey, 'ovwi-key-1');
+
+    return Response.ok(
+      jsonEncode(jwks),
+      headers: {'Content-Type': 'application/json'},
+    );
   });
 
   router.get('/success', (Request req) {
