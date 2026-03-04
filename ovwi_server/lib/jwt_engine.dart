@@ -5,6 +5,10 @@ import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 late List<int> privateKeyBytes;
 late List<int> publicKeyBytes;
 
+const String keyId = "ovwi-key-1";
+const String issuer = "ovwi";
+const String audience = "ovwi-api";
+
 void initJwt() {
   final privateB64 =
       File('bin/private.b64').readAsStringSync().trim();
@@ -16,11 +20,23 @@ void initJwt() {
 }
 
 String generateJwt(String subject) {
-  final jwt = JWT({
-    'iss': 'ovwi',
-    'sub': subject,
-    'iat': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-  });
+  final now = DateTime.now();
+  final exp = now.add(const Duration(minutes: 5));
+
+  final jwt = JWT(
+    {
+      'iss': issuer,
+      'sub': subject,
+      'aud': audience,
+      'iat': now.millisecondsSinceEpoch ~/ 1000,
+      'exp': exp.millisecondsSinceEpoch ~/ 1000,
+    },
+    header: {
+      'alg': 'EdDSA',
+      'kid': keyId,
+      'typ': 'JWT'
+    },
+  );
 
   return jwt.sign(
     EdDSAPrivateKey(privateKeyBytes),
