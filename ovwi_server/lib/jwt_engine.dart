@@ -10,10 +10,12 @@ const String issuer = "ovwi";
 const String audience = "ovwi-api";
 
 void initJwt() {
-  final privateB64 =
-      File('private.b64').readAsStringSync().trim();
-  final publicB64 =
-      File('public.b64').readAsStringSync().trim();
+  final privateB64 = Platform.environment['OVWI_PRIVATE_KEY'];
+  final publicB64 = Platform.environment['OVWI_PUBLIC_KEY'];
+
+  if (privateB64 == null || publicB64 == null) {
+    throw Exception("Missing OVWI key environment variables");
+  }
 
   privateKeyBytes = base64Decode(privateB64);
   publicKeyBytes = base64Decode(publicB64);
