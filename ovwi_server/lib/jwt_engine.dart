@@ -7,9 +7,9 @@ late List<int> publicKeyBytes;
 
 void initJwt() {
   final privateB64 =
-      File('ovwi_server/private.b64').readAsStringSync().trim();
+      File('bin/private.b64').readAsStringSync().trim();
   final publicB64 =
-      File('ovwi_server/public.b64').readAsStringSync().trim();
+      File('bin/public.b64').readAsStringSync().trim();
 
   privateKeyBytes = base64Decode(privateB64);
   publicKeyBytes = base64Decode(publicB64);
