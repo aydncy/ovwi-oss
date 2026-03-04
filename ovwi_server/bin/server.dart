@@ -1,121 +1,65 @@
+import 'dart:io';
 import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
-import '../lib/integrity_engine.dart';
 
-void main() async {
-  final integrityEngine = IntegrityEngine();
+import '../lib/stripe_webhook.dart';
+import '../lib/db.dart';
+import '../lib/jwt_engine.dart';
+
+Future<void> main() async {
+  initDb();
+  initJwt();
+
+  final port = int.parse(
+    Platform.environment['PORT'] ?? '8080',
+  );
 
   final router = Router();
 
-  // Health check
-  router.get('/', (Request request) {
-    return Response.ok('OVWI Server Running');
+  router.get('/health', (Request req) {
+    return Response.ok('OVWI running');
   });
 
-  // Append event
-  router.post('/api/v1/workflows', (Request request) async {
-    final body = await request.readAsString();
-    final data = jsonDecode(body);
+  router.post('/api/v1/stripe/webhook', stripeWebhook);
 
-    final workflowId = data["workflow_id"];
-    final eventId = data["event_id"];
+  router.get('/api/v1/token/test', (Request req) {
+    final apiKey = req.headers['x-api-key'];
 
-    if (workflowId == null || eventId == null) {
-      return Response(400, body: "workflow_id and event_id required");
+    if (apiKey == null) {
+      return Response.forbidden('Missing API key');
     }
 
-    final event = integrityEngine.appendEvent(
-      workflowId,
-      eventId,
-      data,
-    );
+    final keyData = getKey(apiKey);
+
+    if (keyData == null) {
+      return Response.forbidden('Invalid API key');
+    }
+
+    if (keyData['active'] != true) {
+      return Response.forbidden('API key disabled');
+    }
+
+    if (keyData['usage'] >= keyData['limit']) {
+      return Response.forbidden('Usage limit exceeded');
+    }
+
+    incrementUsage(apiKey);
+
+    final token = generateJwt('test');
 
     return Response.ok(
-      jsonEncode(event.toJson()),
-      headers: {"Content-Type": "application/json"},
+      jsonEncode({'token': token}),
+      headers: {'Content-Type': 'application/json'},
     );
   });
 
-  // Get chain
-  router.get('/api/v1/chain/<workflowId>',
-      (Request request, String workflowId) {
-    final chain = integrityEngine.getChain(workflowId);
+  final handler = Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(router);
 
-    return Response.ok(
-      jsonEncode(chain),
-      headers: {"Content-Type": "application/json"},
-    );
-  });
+  final server = await io.serve(handler, '0.0.0.0', port);
 
-  // Verify chain
-  router.get('/api/v1/verify/<workflowId>',
-      (Request request, String workflowId) {
-    final valid = integrityEngine.verifyChain(workflowId);
-
-    return Response.ok(
-      jsonEncode({
-        "workflow_id": workflowId,
-        "chain_valid": valid
-      }),
-      headers: {"Content-Type": "application/json"},
-    );
-  });
-
-  // Proof (signed + git anchored)
-  router.get('/api/v1/proof/<workflowId>',
-      (Request request, String workflowId) async {
-    final proof = await integrityEngine.generateProof(workflowId);
-
-    return Response.ok(
-      jsonEncode(proof),
-      headers: {"Content-Type": "application/json"},
-    );
-  });
-
-  // Proof Pack (human readable + machine readable)
-  router.get('/api/v1/proof-pack/<workflowId>',
-      (Request request, String workflowId) async {
-    final proof = await integrityEngine.generateProof(workflowId);
-
-    final summary = """
-OVWI PROOF PACK
-====================
-
-Workflow ID: ${proof["workflow_id"]}
-Event Count: ${proof["event_count"]}
-Chain Valid: ${proof["chain_valid"]}
-Root Hash: ${proof["root_hash"]}
-Proof Hash: ${proof["proof_hash"]}
-Git Commit: ${proof["git_commit_hash"]}
-Signature: ${proof["signature"]}
-Generated At: ${proof["generated_at"]}
-
-====================
-EVENT TIMELINE
-====================
-""";
-
-    final events = (proof["chain"] as List)
-        .map((e) =>
-            "- ${e["timestamp"]} | ${e["event_id"]} | hash=${e["hash"]}")
-        .join("\n");
-
-    final pack = {
-      "proof": proof,
-      "human_readable_summary": summary + events
-    };
-
-    return Response.ok(
-      jsonEncode(pack),
-      headers: {"Content-Type": "application/json"},
-    );
-  });
-
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(router);
-
-  final server = await io.serve(handler, '0.0.0.0', 8080);
-  print('OVWI Server listening on port ${server.port}');
+  print('🚀 OVWI running on port ${server.port}');
 }

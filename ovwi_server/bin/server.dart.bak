@@ -1,0 +1,82 @@
+import 'dart:convert';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_router/shelf_router.dart';
+import '../lib/integrity_engine.dart';
+
+void main() async {
+  final integrityEngine = IntegrityEngine();
+  final router = Router();
+
+  const issuer = "http://localhost:8080";
+
+  router.get('/', (Request request) {
+    return Response.ok('OVWI Server Running');
+  });
+
+  // JWKS
+  router.get('/.well-known/jwks.json', (Request request) async {
+    final jwk = await integrityEngine.getJwk();
+    return Response.ok(
+      jsonEncode({"keys": [jwk]}),
+      headers: {"Content-Type": "application/json"},
+    );
+  });
+
+  // DID
+  router.get('/.well-known/did.json', (Request request) async {
+    final did = await integrityEngine.getDid();
+    final jwk = await integrityEngine.getJwk();
+
+    final doc = {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": did,
+      "verificationMethod": [
+        {
+          "id": "$did#key-1",
+          "type": "JsonWebKey2020",
+          "controller": did,
+          "publicKeyJwk": jwk
+        }
+      ],
+      "authentication": ["$did#key-1"]
+    };
+
+    return Response.ok(
+      jsonEncode(doc),
+      headers: {"Content-Type": "application/json"},
+    );
+  });
+
+  // OIDC Discovery
+  router.get('/.well-known/openid-configuration',
+      (Request request) async {
+    final config = {
+      "issuer": issuer,
+      "jwks_uri": "$issuer/.well-known/jwks.json",
+      "id_token_signing_alg_values_supported": ["EdDSA"]
+    };
+
+    return Response.ok(
+      jsonEncode(config),
+      headers: {"Content-Type": "application/json"},
+    );
+  });
+
+  // JWT ISSUE ENDPOINT
+  router.get('/api/v1/token/<subject>',
+      (Request request, String subject) async {
+    final token = await integrityEngine.issueJwt(subject);
+
+    return Response.ok(
+      jsonEncode({"token": token}),
+      headers: {"Content-Type": "application/json"},
+    );
+  });
+
+  final handler =
+      const Pipeline().addMiddleware(logRequests()).addHandler(router);
+
+  final server = await io.serve(handler, '0.0.0.0', 8080);
+  print('OVWI Server listening on port ${server.port}');
+}
