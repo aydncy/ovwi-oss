@@ -4,9 +4,9 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
-import '../lib/stripe_webhook.dart';
 import '../lib/db.dart';
 import '../lib/jwt_engine.dart';
+import '../lib/stripe_webhook.dart';
 
 Future<void> main() async {
   initDb();
@@ -20,6 +20,22 @@ Future<void> main() async {
 
   router.get('/health', (Request req) {
     return Response.ok('OVWI running');
+  });
+
+  router.get('/success', (Request req) {
+    final email = req.requestedUri.queryParameters['email'];
+
+    if (email == null) {
+      return Response.badRequest(body: 'Missing email');
+    }
+
+    final newKey = "ovwi_${DateTime.now().millisecondsSinceEpoch}";
+    insertKey(newKey, email, 500000);
+
+    return Response.ok(
+      "Payment successful!\n\nYour API Key:\n\n$newKey",
+      headers: {'Content-Type': 'text/plain'},
+    );
   });
 
   router.post('/api/v1/stripe/webhook', stripeWebhook);
