@@ -1,3 +1,5 @@
+[![OVWI CI](https://github.com/aydncy/ovwi-oss/actions/workflows/ci.yml/badge.svg)](https://github.com/aydncy/ovwi-oss/actions/workflows/ci.yml)
+
 # OVWI
 
 Open Verifiable Workflow Infrastructure.
