@@ -8,7 +8,7 @@ import 'package:shelf_router/shelf_router.dart';
 import '../lib/db.dart';
 import '../lib/jwt_engine.dart';
 import '../lib/stripe_webhook.dart';
-import '../../lib/jwks.dart';
+import '../lib/jwks.dart';
 
 Future<void> main() async {
   initDb();
