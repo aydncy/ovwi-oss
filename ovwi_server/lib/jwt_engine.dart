@@ -11,9 +11,9 @@ const String audience = "ovwi-api";
 
 void initJwt() {
   final privateB64 =
-      File('bin/private.b64').readAsStringSync().trim();
+      File('private.b64').readAsStringSync().trim();
   final publicB64 =
-      File('bin/public.b64').readAsStringSync().trim();
+      File('public.b64').readAsStringSync().trim();
 
   privateKeyBytes = base64Decode(privateB64);
   publicKeyBytes = base64Decode(publicB64);
