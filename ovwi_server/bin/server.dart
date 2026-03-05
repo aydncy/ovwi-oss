@@ -63,16 +63,20 @@ Future<void> main() async {
 
     final keyData = getKey(apiKey);
 
-    if (apiKey != "demo-public-key" if (keyData == null)if (keyData == null) keyData == null) {
-      return Response.forbidden('Invalid API key');
-    }
+    if (apiKey != "demo-public-key") {
+      if (keyData == null) {
+        return Response.forbidden("Invalid API key");
+      }
 
-    if (keyData['active'] != true) {
-      return Response.forbidden('API key disabled');
-    }
+      if (keyData!["active"] != true) {
+        return Response.forbidden("API key disabled");
+      }
 
-    if (keyData['usage'] >= keyData['limit']) {
-      return Response.forbidden('Usage limit exceeded');
+      if (keyData["usage"] >= keyData["limit"]) {
+        return Response.forbidden("Usage limit exceeded");
+      }
+
+      incrementUsage(apiKey);
     }
 
     incrementUsage(apiKey);
