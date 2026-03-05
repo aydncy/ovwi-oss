@@ -1,12 +1,10 @@
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 
 Middleware apiKeyAuthMiddleware() {
 
   const demoKey = "demo-public-key";
-  final secretKey = const String.fromEnvironment(
-    "OVWI_API_SECRET",
-    defaultValue: "",
-  );
+  final secretKey = Platform.environment["OVWI_API_SECRET"] ?? "";
 
   return (Handler innerHandler) {
     return (Request request) async {
