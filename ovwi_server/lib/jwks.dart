@@ -1,6 +1,8 @@
-Map<String, dynamic> buildJwks(String publicKey, String kid) {
+Map<String, dynamic> buildJwks(String? publicKey, String kid) {
 
-  final x = publicKey.replaceAll("=", "");
+  final key = publicKey ?? "";
+
+  final x = key.replaceAll("=", "");
 
   return {
     "keys": [
