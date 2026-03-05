@@ -29,7 +29,7 @@ Future<void> main() async {
   // JWKS endpoint
   router.get('/.well-known/jwks.json', (Request req) {
     final publicKey = getPublicKeyBase64Url();
-    final jwks = buildJwks(base64Decode(publicKey), 'ovwi-key-1');
+    final jwks = buildJwks(publicKey, 'ovwi-key-1');
 
     return Response.ok(
       jsonEncode(jwks),
