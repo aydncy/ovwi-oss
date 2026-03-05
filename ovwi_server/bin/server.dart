@@ -14,7 +14,7 @@ const validApiKeys = {"demo-public-key"};
 
 Future<void> main() async {
   initDb();
-  //initJwt();
+  initJwt();
 
   final port = int.parse(
     Platform.environment['PORT'] ?? '8080',
