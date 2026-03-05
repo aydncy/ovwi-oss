@@ -2,10 +2,11 @@ FROM dart:stable
 
 WORKDIR /app
 
-COPY . .
-
+COPY pubspec.* ./
 RUN dart pub get
+
+COPY . .
 
 EXPOSE 8080
 
-CMD ["dart", "run", "bin/server.dart"]
+CMD ["dart","run","bin/server.dart"]
