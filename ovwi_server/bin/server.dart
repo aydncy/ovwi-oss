@@ -1,3 +1,4 @@
+const validApiKeys = {"demo-public-key"};
 import 'dart:convert';
 import 'dart:io';
 
