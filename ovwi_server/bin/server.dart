@@ -78,6 +78,10 @@ Future<void> main() async {
 
       incrementUsage(apiKey);
     }
+      }
+
+      incrementUsage(apiKey);
+    }
 
     incrementUsage(apiKey);
 
