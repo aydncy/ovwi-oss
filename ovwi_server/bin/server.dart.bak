@@ -1,82 +1,102 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
-import '../lib/integrity_engine.dart';
+
+// Basit bir API Key deposu (Gerçek projede veritabanından gelmeli)
+final Map<String, Map<String, dynamic>> _apiKeys = {
+  'demo-public-key': {'active': true, 'usage': 0, 'limit': 100},
+};
+
+void incrementUsage(String key) {
+  if (_apiKeys.containsKey(key)) {
+    _apiKeys[key]!['usage'] = (_apiKeys[key]!['usage'] as int) + 1;
+  }
+}
+
+Map<String, dynamic>? getKey(String key) {
+  return _apiKeys[key];
+}
+
+// Middleware: Loglama
+Middleware logRequests() {
+  return (Handler innerHandler) {
+    return (Request request) async {
+      print('${request.method} ${request.url}');
+      final response = await innerHandler(request);
+      print('=> ${response.statusCode}');
+      return response;
+    };
+  };
+}
 
 void main() async {
-  final integrityEngine = IntegrityEngine();
   final router = Router();
+  final port = int.parse(Platform.environment['OVWI_PORT'] ?? '8080');
 
-  const issuer = "http://localhost:8080";
-
-  router.get('/', (Request request) {
-    return Response.ok('OVWI Server Running');
-  });
-
-  // JWKS
-  router.get('/.well-known/jwks.json', (Request request) async {
-    final jwk = await integrityEngine.getJwk();
+  // Health Check
+  router.get('/health', (Request req) {
     return Response.ok(
-      jsonEncode({"keys": [jwk]}),
-      headers: {"Content-Type": "application/json"},
+      jsonEncode({'status': 'healthy', 'version': '0.2.0'}),
+      headers: {'Content-Type': 'application/json'},
     );
   });
 
-  // DID
-  router.get('/.well-known/did.json', (Request request) async {
-    final did = await integrityEngine.getDid();
-    final jwk = await integrityEngine.getJwk();
+  router.get('/', (Request req) {
+    return Response.ok('OVWI running');
+  });
 
-    final doc = {
-      "@context": "https://www.w3.org/ns/did/v1",
-      "id": did,
-      "verificationMethod": [
-        {
-          "id": "$did#key-1",
-          "type": "JsonWebKey2020",
-          "controller": did,
-          "publicKeyJwk": jwk
-        }
-      ],
-      "authentication": ["$did#key-1"]
-    };
+  // Token Test Endpoint
+  router.get('/api/v1/token/test', (Request req) {
+    final apiKey = req.headers['x-api-key'];
+    
+    if (apiKey == null) {
+      return Response.forbidden('Missing API key');
+    }
 
+    // Güvenlik Kontrolü
+    if (apiKey != 'demo-public-key') {
+      final keyData = getKey(apiKey);
+      if (keyData == null) {
+        return Response.forbidden("Invalid API key");
+      }
+      if (keyData['active'] != true) {
+        return Response.forbidden("API key disabled");
+      }
+      if ((keyData['usage'] as int) >= (keyData['limit'] as int)) {
+        return Response.forbidden("Usage limit exceeded");
+      }
+      incrementUsage(apiKey);
+    }
+
+    final token = 'token-${DateTime.now().millisecondsSinceEpoch}';
     return Response.ok(
-      jsonEncode(doc),
-      headers: {"Content-Type": "application/json"},
+      jsonEncode({'token': token}),
+      headers: {'Content-Type': 'application/json'},
     );
   });
 
-  // OIDC Discovery
-  router.get('/.well-known/openid-configuration',
-      (Request request) async {
-    final config = {
-      "issuer": issuer,
-      "jwks_uri": "$issuer/.well-known/jwks.json",
-      "id_token_signing_alg_values_supported": ["EdDSA"]
-    };
+  // Register Endpoint
+  router.post('/api/v1/register', (Request req) async {
+    final body = await req.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    
+    if (!data.containsKey('email')) {
+      return Response.badRequest(body: 'Missing email');
+    }
 
     return Response.ok(
-      jsonEncode(config),
-      headers: {"Content-Type": "application/json"},
+      jsonEncode({'message': 'Registered', 'email': data['email']}),
+      headers: {'Content-Type': 'application/json'},
     );
   });
 
-  // JWT ISSUE ENDPOINT
-  router.get('/api/v1/token/<subject>',
-      (Request request, String subject) async {
-    final token = await integrityEngine.issueJwt(subject);
+  // Pipeline Kurulumu
+  final handler = Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(router.call);
 
-    return Response.ok(
-      jsonEncode({"token": token}),
-      headers: {"Content-Type": "application/json"},
-    );
-  });
-
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(router);
-
-  final server = await io.serve(handler, '0.0.0.0', 8080);
-  print('OVWI Server listening on port ${server.port}');
+  final server = await io.serve(handler, InternetAddress.anyIPv4, port);
+  print('🚀 OVWI Server running on port $port');
 }

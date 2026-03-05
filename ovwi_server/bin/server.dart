@@ -1,103 +1,94 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
-import '../lib/db.dart';
-import '../lib/jwt_engine.dart';
-import '../lib/stripe_webhook.dart';
-import '../lib/jwks.dart';
-const validApiKeys = {"demo-public-key"};
+final Map<String, Map<String, dynamic>> _apiKeys = {
+  'demo-public-key': {'active': true, 'usage': 0, 'limit': 100},
+};
 
-Future<void> main() async {
-  initDb();
-  initJwt();
+void incrementUsage(String key) {
+  if (_apiKeys.containsKey(key)) {
+    _apiKeys[key]!['usage'] = (_apiKeys[key]!['usage'] as int) + 1;
+  }
+}
 
-  final port = int.parse(
-    Platform.environment['PORT'] ?? '8080',
-  );
+Map<String, dynamic>? getKey(String key) {
+  return _apiKeys[key];
+}
 
+Middleware logRequests() {
+  return (Handler innerHandler) {
+    return (Request request) async {
+      print('${request.method} ${request.url}');
+      final response = await innerHandler(request);
+      print('=> ${response.statusCode}');
+      return response;
+    };
+  };
+}
+
+void main() async {
   final router = Router();
+  final port = int.parse(Platform.environment['OVWI_PORT'] ?? '8080');
 
   router.get('/health', (Request req) {
-    return Response.ok('OVWI running');
-  });
-
-  // JWKS endpoint
-  router.get('/.well-known/jwks.json', (Request req) {
-    final publicKey = getPublicKeyBase64Url();
-    final jwks = buildJwks(publicKey, 'ovwi-key-1');
-
     return Response.ok(
-      jsonEncode(jwks),
+      jsonEncode({'status': 'healthy', 'version': '0.2.0'}),
       headers: {'Content-Type': 'application/json'},
     );
   });
 
-  router.get('/success', (Request req) {
-    final email = req.requestedUri.queryParameters['email'];
-
-    if (email == null) {
-      return Response.badRequest(body: 'Missing email');
-    }
-
-    final newKey = "ovwi_${DateTime.now().millisecondsSinceEpoch}";
-    insertKey(newKey, email, 500000);
-
-    return Response.ok(
-      "Payment successful!\n\nYour API Key:\n\n$newKey",
-      headers: {'Content-Type': 'text/plain'},
-    );
+  router.get('/', (Request req) {
+    return Response.ok('OVWI running');
   });
-
-  router.post('/api/v1/stripe/webhook', stripeWebhook);
 
   router.get('/api/v1/token/test', (Request req) {
     final apiKey = req.headers['x-api-key'];
-
+    
     if (apiKey == null) {
       return Response.forbidden('Missing API key');
     }
 
-    final keyData = getKey(apiKey);
-
-    if (apiKey != "demo-public-key") {
+    if (apiKey != 'demo-public-key') {
+      final keyData = getKey(apiKey);
       if (keyData == null) {
         return Response.forbidden("Invalid API key");
       }
-
-      if (keyData!["active"] != true) {
+      if (keyData['active'] != true) {
         return Response.forbidden("API key disabled");
       }
-
-      if (keyData["usage"] >= keyData["limit"]) {
+      if ((keyData['usage'] as int) >= (keyData['limit'] as int)) {
         return Response.forbidden("Usage limit exceeded");
       }
-
-      incrementUsage(apiKey);
-    }
-      }
-
       incrementUsage(apiKey);
     }
 
-    incrementUsage(apiKey);
-
-    final token = generateJwt('test');
-
+    final token = 'token-${DateTime.now().millisecondsSinceEpoch}';
     return Response.ok(
       jsonEncode({'token': token}),
       headers: {'Content-Type': 'application/json'},
     );
   });
 
+  router.post('/api/v1/register', (Request req) async {
+    final body = await req.readAsString();
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    
+    if (!data.containsKey('email')) {
+      return Response.badRequest(body: 'Missing email');
+    }
+
+    return Response.ok(
+      jsonEncode({'message': 'Registered', 'email': data['email']}),
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
   final handler = Pipeline()
       .addMiddleware(logRequests())
-      .addHandler(router);
+      .addHandler(router.call);
 
-  final server = await io.serve(handler, '0.0.0.0', port);
-
-  print('🚀 OVWI running on port ${server.port}');
+  final server = await io.serve(handler, InternetAddress.anyIPv4, port);
 }
