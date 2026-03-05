@@ -1,8 +1,6 @@
-import 'dart:convert';
-
 Map<String, dynamic> buildJwks(String publicKey, String kid) {
-  final keyBytes = base64Decode(publicKey);
-  final x = base64UrlEncode(keyBytes).replaceAll("=", "");
+
+  final x = publicKey.replaceAll("=", "");
 
   return {
     "keys": [
