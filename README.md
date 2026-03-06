@@ -233,6 +233,26 @@ We welcome contributors! See CONTRIBUTING.md for:
 
 AGPL-3.0 (open source with commercial license available)
 
----
+## 💰 Support Development
 
+This project needs sustainable funding to accelerate development.
+
+### Ways to Support
+
+**GitHub Sponsors** - Monthly recurring support  
+https://github.com/sponsors/aydncy/
+
+**Gumroad Subscription** - Direct support  
+https://aydncy.gumroad.com/l/ClinicFlowAC
+
+**Corporate Sponsorship**  
+Contact: [aydinceylan07@gmail.com]
+
+Every sponsorship directly funds:
+- Security audits & HIPAA compliance
+- Mobile app development (Flutter)
+- Infrastructure & hosting
+- Community support & documentation
+
+Your support helps bring enterprise healthcare IT to clinics worldwide! 🌍
 **Open Verifiable Workflow Infrastructure** - Built to change healthcare globally.
