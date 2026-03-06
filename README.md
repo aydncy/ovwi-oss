@@ -1,90 +1,80 @@
 # OVWI - Open Verifiable Workflow Infrastructure
 
-## 🏥 The Open Healthcare Platform for the World
+**Enterprise-grade workflow engine for regulated environments**
 
-Enterprise-grade, HIPAA-ready healthcare platform built for clinics, hospitals, 
-and healthcare providers worldwide.
+Open Verifiable Workflow Infrastructure (OVWI) is an immutable, audit-ready 
+workflow system designed for healthcare, finance, and other regulated sectors.
 
-### ✨ Why ClinicFlowAC?
+ClinicFlowAC is the reference healthcare implementation.
+
+---
+
+## 🎯 What Is OVWI?
 
 **The Problem:**
-- 🌍 80% of clinics globally use paper-based systems
-- 💰 Enterprise healthcare IT costs $5,000-$50,000/year (unsustainable)
-- 🔐 HIPAA compliance is impossible for most clinics
-- 📊 Patient data is vulnerable to loss and theft
+- Workflows in regulated environments need complete audit trails
+- Immutability prevents tampering and ensures compliance
+- Traditional systems lack cryptographic proof
+- Regulatory audits require verifiable history
 
 **Our Solution:**
-- ✅ €0 licensing (open source)
-- ✅ Self-hosted (you own your data)
-- ✅ HIPAA-compliant by design
-- ✅ Enterprise-grade security
-- ✅ Supports 100,000+ appointments/month
-- ✅ Scalable to global healthcare networks
+- ✅ Immutable event logs (append-only)
+- ✅ Cryptographic signing (Ed25519)
+- ✅ Hash chain validation
+- ✅ Tamper detection
+- ✅ Audit-ready by design
+- ✅ Sector-agnostic (healthcare, finance, etc)
 
-### 📊 By The Numbers
+---
+
+## 📊 By The Numbers
 ```
-5,285    Lines of production code
-97       Dart files
-60+      Healthcare features
+2,419    Lines of core OVWI code
+43       Dart files
+15+      Enterprise services
 9/10     Architecture score
 8.7/10   Production readiness
 99.95%   Target uptime
-0        Monthly licensing cost
+€0       Licensing cost
 ```
 
-### 🚀 Key Features
+---
 
-**Appointment Management**
-- Schedule and manage appointments
-- Doctor/clinic/patient assignment
-- Appointment status tracking
-- Cancellation and rescheduling
+## 🚀 Core Components
 
-**Patient Records**
-- Complete patient profiles
-- Medical history
-- Emergency contacts
-- Demographics
+**Event Signing**
+- Ed25519 digital signatures
+- SHA-256 hashing
+- Sequence numbering
+- Hash chain linking
 
-**Documents**
-- Secure document upload
-- Verification workflow
-- Immutable audit trail
-- File management
+**Event Storage**
+- Append-only event log
+- JSONL persistence
+- Chain integrity verification
+- Event retrieval by ID
 
-**Consent Management**
-- Consent recording (immutable)
-- Compliance tracking
-- Patient acknowledgment
-- Legal protection
+**API Layer**
+- REST endpoints
+- Input validation
+- Error handling
+- Health checks
 
-**Prescriptions**
-- Digital prescription management
-- Medication tracking
-- Pharmacy integration ready
-- Refill tracking
+**Security Services**
+- Authentication (JWT)
+- Authorization (RBAC)
+- Rate limiting
+- Encryption ready
 
-**Medical Records**
-- Chief complaints
-- Examination notes
-- Diagnoses (ICD-10 ready)
-- Treatment plans
-- Assessment and plan
+**Infrastructure**
+- PostgreSQL integration
+- Docker containerization
+- Kubernetes orchestration
+- Prometheus monitoring
 
-**Billing**
-- Invoice generation
-- Payment tracking
-- Discount management
-- Tax compliance
-- Payment method support
+---
 
-**Notifications**
-- Email notifications
-- SMS alerts (ready)
-- Push notifications (ready)
-- Real-time updates
-
-### 🔐 Security & Compliance
+## 🔐 Security & Compliance
 
 **Cryptographic Integrity**
 - Ed25519 digital signatures
@@ -104,13 +94,43 @@ and healthcare providers worldwide.
 - Role-based access control
 - Password hashing (bcrypt/argon2)
 
-**HIPAA Readiness**
+**HIPAA Readiness** (via ClinicFlowAC)
 - Privacy safeguards designed in
 - Audit logging complete
 - Data breach protocols
 - Compliance documentation
 
-### 📈 Architecture
+---
+
+## 🌍 Use Cases
+
+**Healthcare (ClinicFlowAC)**
+- Patient appointment management
+- Medical record tracking
+- Consent recording
+- Document verification
+
+**Finance**
+- Transaction logging
+- Audit trail requirements
+- Regulatory compliance
+- Fraud detection
+
+**Legal**
+- Contract execution
+- Document verification
+- Timestamp proof
+- Legal compliance
+
+**Supply Chain**
+- Product tracking
+- Origin verification
+- Compliance documentation
+- Audit requirements
+
+---
+
+## 📈 Architecture
 
 **Technology Stack**
 - Backend: Dart (100% type-safe)
@@ -132,106 +152,86 @@ and healthcare providers worldwide.
 - Caching with Redis
 - Database replication ready
 
-### 🌍 Use Cases
+---
 
-**Rural Clinics**
-- Affordable IT solution
-- No expensive licensing
-- Self-hosted (works offline)
-- Minimal infrastructure needs
-
-**Hospital Networks**
-- Multi-clinic support
-- Scalable to thousands of users
-- Complete audit trail
-- Regulatory compliance
-
-**Telemedicine Providers**
-- Remote consultation tracking
-- Document management
-- Consent recording
-- Patient privacy protection
-
-**Research Centers**
-- Patient data management
-- Secure record keeping
-- Data export capabilities
-- Compliance ready
-
-**Developing Nations**
-- Minimal infrastructure requirements
-- Offline-first capability
-- Multi-language ready (roadmap)
-- Open source (no vendor lock-in)
-
-### 📅 Roadmap 2026
+## 📅 Roadmap 2026
 
 **Q2 (April-June)**
 - PostgreSQL hardening and testing
-- Flutter mobile app (iOS + Android)
-- Real-time WebSocket support
-- Document storage (S3 integration)
+- Advanced monitoring dashboard
+- Performance optimization
+- Documentation expansion
 
 **Q3 (July-September)**
-- HIPAA audit completion
+- Multi-sector implementations
 - SOC 2 compliance
-- Advanced analytics dashboard
-- Multi-region deployment
+- Advanced analytics
+- Enterprise features
 
 **Q4 (October-December)**
-- AI-powered diagnostics (optional)
-- HL7 FHIR integration
 - Blockchain integration (optional)
+- Advanced analytics dashboard
+- Multi-region deployment
 - Enterprise SaaS offering
 
-### 💰 Support & Funding
+---
 
-This project is built by professionals to solve real healthcare problems.
-Sustained funding accelerates development.
+## 🔗 Reference Implementations
 
-**Ways to Support:**
+**ClinicFlowAC** - Healthcare reference implementation  
+https://github.com/aydncy/clinicflowac-oss
 
-**GitHub Sponsors** - Monthly recurring
-- €5/month: Email updates
-- €25/month: Priority support
-- €100/month: Feature naming
-- €500/month: Quarterly calls
+ClinicFlowAC demonstrates OVWI capabilities for healthcare:
+- Appointment management
+- Patient records
+- Document verification
+- Consent tracking
+- Billing & payments
 
-**Gumroad Subscription** - Direct support
-- €19/month: Developer tier
-- €99/month: Organization tier
-- €499/month: Enterprise tier
-- https://aydncy.gumroad.com/l/ovwi
+---
 
-**Corporate Sponsorship**
-- €500-€5,000/month
-- Logo placement
-- Custom development
-- Direct support
+## 🚀 Getting Started
 
-**NLnet Grant**
-- Funding for open source healthcare
-- Decision: April 1, 2026
-- Status: Application submitted
+### Prerequisites
+- Dart SDK 3.0+
+- PostgreSQL 14+
+- Docker (optional)
 
-### 🤝 Contributing
+### Quick Start
+```bash
+# Clone repository
+git clone https://github.com/aydncy/ovwi-oss.git
+cd ovwi-oss/ovwi_server
 
-We welcome contributors! See CONTRIBUTING.md for:
+# Install dependencies
+dart pub get
+
+# Run tests
+dart test
+
+# Start server
+dart run bin/server.dart
+```
+
+Server runs on `http://localhost:8080`
+
+### Docker Deployment
+```bash
+docker-compose up
+# OVWI: http://localhost:8080
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! See CONTRIBUTING.md for:
 - Development setup
 - Code style guide
 - Testing requirements
 - Pull request process
 
-### 📞 Community
-
-- **GitHub Discussions:** Ask questions
-- **Weekly Updates:** Development progress
-- **Public Roadmap:** What's coming
-- **Open Issues:** Help needed
-
-### 📜 License
-
-AGPL-3.0 (open source with commercial license available)
+---
 
 ## 💰 Support Development
 
@@ -246,13 +246,30 @@ https://github.com/sponsors/aydncy/
 https://aydncy.gumroad.com/l/ClinicFlowAC
 
 **Corporate Sponsorship**  
-Contact: [aydinceylan07@gmail.com]
+Contact: aydinceylan07@gmail.com
 
 Every sponsorship directly funds:
-- Security audits & HIPAA compliance
-- Mobile app development (Flutter)
+- Security audits & compliance
+- Reference implementations
 - Infrastructure & hosting
 - Community support & documentation
 
-Your support helps bring enterprise healthcare IT to clinics worldwide! 🌍
-**Open Verifiable Workflow Infrastructure** - Built to change healthcare globally.
+Your support helps bring enterprise-grade infrastructure to regulated environments worldwide! 🌍
+
+---
+
+## 📞 Community & Support
+
+- **GitHub Discussions:** Ask questions and share ideas
+- **Issues:** Report bugs and request features
+- **Email:** aydinceylan07@gmail.com
+
+---
+
+## 📜 License
+
+AGPL-3.0 (open source with commercial license available)
+
+---
+
+**Open infrastructure for regulated environments globally.** 🌍
