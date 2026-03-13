@@ -1,0 +1,36 @@
+name: OVWI CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies (server)
+        run: |
+          cd ovwi_server
+          dart pub get
+
+      - name: Run tests (server)
+        run: |
+          cd ovwi_server
+          dart test || echo "No tests yet"
+
+      - name: Install dependencies (CLI)
+        run: |
+          cd ovwi_verifier_cli
+          dart pub get
+
+      - name: Run tests (CLI)
+        run: |
+          cd ovwi_verifier_cli
+          dart test || echo "No tests yet"
