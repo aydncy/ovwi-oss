@@ -8,6 +8,19 @@ import 'package:shelf_router/shelf_router.dart';
 import '../lib/core/middleware/request_logger_middleware.dart';
 import '../lib/middleware/rate_limiter.dart';
 import '../lib/middleware/analytics_middleware.dart';
+import '../lib/features/auth_routes.dart';
+
+Middleware requestLoggerMiddleware() {
+  return (Handler handler) {
+    return (Request request) async {
+      final start = DateTime.now();
+      final response = await handler(request);
+      final duration = DateTime.now().difference(start).inMilliseconds;
+      print('[${request.method}] ${request.requestedUri.path} › ${response.statusCode} (${duration}ms)');
+      return response;
+    };
+  };
+}
 
 Future<void> main() async {
   final router = Router();
@@ -38,9 +51,15 @@ Future<void> main() async {
     );
   });
 
+  final authRouter = authRoutes();
+
   final handler = Pipeline()
       .addMiddleware(requestLoggerMiddleware())
-      .addHandler(router.call);
+      .addHandler((request) async {
+        var response = router(request);
+        if (response is Response) return response;
+        return authRouter(request);
+      });
 
   final port = int.parse(Platform.environment['PORT'] ?? '8081');
 
@@ -48,4 +67,5 @@ Future<void> main() async {
 
   print('OVWI server running on port ' + port.toString());
   print('Health: http://localhost:8081/health');
+  print('Auth: http://localhost:8081/api/v1/auth/register');
 }
