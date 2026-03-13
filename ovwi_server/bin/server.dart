@@ -6,9 +6,8 @@ import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
 import '../lib/core/middleware/request_logger_middleware.dart';
-import '../lib/middleware/rate_limiter.dart';
-import '../lib/middleware/analytics_middleware.dart';
 import '../lib/features/auth_routes.dart';
+import '../lib/features/gateway_routes.dart';
 
 Middleware requestLoggerMiddleware() {
   return (Handler handler) {
@@ -27,7 +26,7 @@ Future<void> main() async {
 
   router.get('/health', (Request req) {
     return Response.ok(
-      jsonEncode({'status': 'healthy', 'timestamp': DateTime.now().toIso8601String()}),
+      jsonEncode({'status': 'healthy', 'service': 'OVWI', 'timestamp': DateTime.now().toIso8601String()}),
       headers: {'Content-Type': 'application/json'},
     );
   });
@@ -52,20 +51,23 @@ Future<void> main() async {
   });
 
   final authRouter = authRoutes();
+  final gatewayRouter = gatewayRoutes();
 
   final handler = Pipeline()
       .addMiddleware(requestLoggerMiddleware())
       .addHandler((request) async {
         var response = router(request);
         if (response is Response) return response;
-        return authRouter(request);
+        response = authRouter(request);
+        if (response is Response) return response;
+        return gatewayRouter(request);
       });
 
   final port = int.parse(Platform.environment['PORT'] ?? '8081');
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
 
-  print('OVWI server running on port ' + port.toString());
+  print('OVWI API Gateway running on port ' + port.toString());
   print('Health: http://localhost:8081/health');
-  print('Auth: http://localhost:8081/api/v1/auth/register');
+  print('Gateway: http://localhost:8081/api/v1/gateway/patients');
 }

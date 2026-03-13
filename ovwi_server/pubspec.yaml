@@ -1,4 +1,4 @@
-name: ovwi
+﻿name: ovwi
 description: OVWI API platform
 version: 1.0.0
 
@@ -12,6 +12,7 @@ dependencies:
   dotenv: ^4.2.0
   uuid: ^4.5.1
   crypto: ^3.0.7
+  http: ^1.1.0
 
 dev_dependencies:
   lints: ^5.0.0
