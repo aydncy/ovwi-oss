@@ -1,24 +1,23 @@
+﻿import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import '../features/health/health_routes.dart';
-import '../features/debug/debug_routes.dart';
-import '../features/keys/key_routes.dart';
-import '../features/token/token_routes.dart';
-import '../features/plugins/plugin_routes.dart';
-import '../features/analytics/analytics_routes.dart';
-import '../features/auth/auth_routes.dart';
+
 import '../features/dashboard/dashboard_routes.dart';
+import '../features/analytics/analytics_routes.dart';
+import '../features/gateway_routes.dart';
 
 Router buildRouter() {
   final router = Router();
 
-  router.mount('/', healthRoutes().call);
-  router.mount('/', debugRoutes().call);
-  router.mount('/', keyRoutes().call);
-  router.mount('/', tokenRoutes().call);
-  router.mount('/', pluginRoutes().call);
-  router.mount('/', analyticsRoutes().call);
-  router.mount('/', authRoutes().call);
-  router.mount('/', dashboardRoutes().call);
+  router.get('/health', (Request req) {
+    return Response.ok(
+      '{"status":"healthy","service":"OVWI API Platform","version":"1.0.0"}',
+      headers: {'Content-Type': 'application/json'},
+    );
+  });
+
+  router.mount('/api/v1/dashboard/', dashboardRoutes());
+  router.mount('/api/v1/analytics/', analyticsRoutes());
+  router.mount('/api/v1/gateway/', gatewayRoutes());
 
   return router;
 }

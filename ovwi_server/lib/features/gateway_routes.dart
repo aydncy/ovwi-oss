@@ -1,76 +1,51 @@
-﻿import 'package:shelf/shelf.dart';
+﻿import 'dart:convert';
+import 'dart:io';
+
+import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'dart:convert';
-import '../services/api_gateway_service.dart';
+
+Future<Response> _proxyGet(String targetPath) async {
+  final client = HttpClient();
+
+  try {
+    final uri = Uri.parse('http://localhost:8083/api/v1/' + targetPath);
+    final request = await client.getUrl(uri);
+    final response = await request.close();
+    final body = await utf8.decoder.bind(response).join();
+
+    return Response(
+      response.statusCode,
+      body: body,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+  } catch (e) {
+    return Response.internalServerError(
+      body: jsonEncode({
+        "error": "gateway_proxy_failed",
+        "message": e.toString()
+      }),
+      headers: {'Content-Type': 'application/json'},
+    );
+  } finally {
+    client.close(force: true);
+  }
+}
 
 Router gatewayRoutes() {
   final router = Router();
-  final gateway = APIGatewayService();
 
-  router.get('/api/v1/gateway/patients', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final patients = await gateway.getPatients(apiKey);
-      return Response.ok(jsonEncode(patients), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
+  router.get('/patients', (Request req) async {
+    return await _proxyGet('patients');
   });
 
-  router.post('/api/v1/gateway/patients', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final body = await request.readAsString();
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final result = await gateway.createPatient(apiKey, json);
-      return Response.ok(jsonEncode(result), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
+  router.get('/doctors', (Request req) async {
+    return await _proxyGet('doctors');
   });
 
-  router.get('/api/v1/gateway/appointments', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final appointments = await gateway.getAppointments(apiKey);
-      return Response.ok(jsonEncode(appointments), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
-  });
-
-  router.post('/api/v1/gateway/appointments', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final body = await request.readAsString();
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final result = await gateway.createAppointment(apiKey, json);
-      return Response.ok(jsonEncode(result), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
-  });
-
-  router.get('/api/v1/gateway/doctors', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final doctors = await gateway.getDoctors(apiKey);
-      return Response.ok(jsonEncode(doctors), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
-  });
-
-  router.post('/api/v1/gateway/doctors', (Request request) async {
-    try {
-      final apiKey = request.headers['x-api-key'] ?? '';
-      final body = await request.readAsString();
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      final result = await gateway.createDoctor(apiKey, json);
-      return Response.ok(jsonEncode(result), headers: {'Content-Type': 'application/json'});
-    } catch (e) {
-      return Response.internalServerError(body: jsonEncode({'error': e.toString()}));
-    }
+  router.get('/appointments', (Request req) async {
+    return await _proxyGet('appointments');
   });
 
   return router;

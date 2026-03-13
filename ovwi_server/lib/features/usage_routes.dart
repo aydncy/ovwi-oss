@@ -1,16 +1,14 @@
 ﻿import 'dart:convert';
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
+import '../services/usage_service.dart';
 
-Router analyticsRoutes() {
+Router usageRoutes() {
   final router = Router();
 
-  router.get('/summary', (Request req) async {
+  router.get('/api/v1/analytics/usage', (Request req) {
     return Response.ok(
-      jsonEncode({
-        "requests": 0,
-        "errors": 0
-      }),
+      jsonEncode(usageSummary()),
       headers: {'Content-Type': 'application/json'},
     );
   });
