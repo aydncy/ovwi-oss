@@ -8,10 +8,10 @@ Append-only, audit-ready workflow and API gateway platform built with Dart + She
 - Hash chain validation
 - Immutable event log
 - Verifiable workflow execution
-- API Gateway for microservices
+- API Gateway for backend services
 - Request analytics
 - Rate limiting
-- Audit-ready operations
+- Developer authentication
 
 ## Installation
 
@@ -21,9 +21,11 @@ dart run bin/server.dart
 
 ## Endpoints
 
-/health - Health check  
-/webhook/purchase - Purchase events  
-/api/workflow - Workflow operations  
+/health
+/api/v1/dashboard/stats
+/api/v1/gateway/patients
+/api/workflow
+/webhook/purchase
 
 ## License
 
