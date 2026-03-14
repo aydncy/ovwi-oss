@@ -9,13 +9,13 @@ Middleware apiKeyMiddleware() {
     return (Request request) async {
       final path = request.requestedUri.path;
 
-      final isPublic = path == 'health' ||
-          path == 'debug' ||
-          path == 'api/v1/keys';
+final isPublic = path == '/health' ||
+    path == '/debug' ||
+    path == '/api/v1/keys';
 
-      if (isPublic) {
-        return innerHandler(request);
-      }
+if (isPublic) {
+  return innerHandler(request);
+}
 
       final apiKey = request.headers['x-api-key'];
 
@@ -54,3 +54,4 @@ Middleware apiKeyMiddleware() {
     };
   };
 }
+

@@ -1,126 +1,127 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:uuid/uuid.dart';
+import '../models/api_key_model.dart';
+import 'package:postgres/postgres.dart';
 
-class APIKeyCredential {
-  final String keyId;
-  final String secret;
-  final String scope;
-  final DateTime createdAt;
-  final DateTime? expiresAt;
-  final bool active;
+class ApiKeyService {
+  final Connection connection;
 
-  APIKeyCredential({
-    required this.keyId,
-    required this.secret,
-    required this.scope,
-    required this.createdAt,
-    this.expiresAt,
-    this.active = true,
-  });
+  ApiKeyService({required this.connection});
 
-  bool isExpired() {
-    if (expiresAt == null) return false;
-    return DateTime.now().isAfter(expiresAt!);
+  String _generateSecret() {
+    const uuid = Uuid();
+    return uuid.v4().replaceAll('-', '').substring(0, 20);
   }
 
-  bool isValid() => active && !isExpired();
-
-  Map<String, dynamic> toJson() => {
-    'keyId': keyId,
-    'scope': scope,
-    'createdAt': createdAt.toIso8601String(),
-    'expiresAt': expiresAt?.toIso8601String(),
-    'active': active,
-  };
-}
-
-class APIKeyService {
-  final Map<String, APIKeyCredential> _keys = {};
-
-  String generateKeyId({required String prefix}) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = DateTime.now().microsecond;
-    return '${prefix}_${timestamp}_${random}';
+  String generateApiKey({String prefix = 'ovwi_live'}) {
+    final secret = _generateSecret();
+    return '${prefix}_${secret}';
   }
 
-  String generateSecret() {
-    final random = DateTime.now().millisecondsSinceEpoch.toString();
-    return sha256.convert(utf8.encode(random)).toString().substring(0, 32);
+  String _hashSecret(String secret) {
+    return sha256.convert(utf8.encode(secret)).toString();
   }
 
-  APIKeyCredential createAPIKey({
-    required String scope,
-    Duration? validFor,
-  }) {
-    final keyId = generateKeyId(prefix: 'key_live');
-    final secret = generateSecret();
-    final createdAt = DateTime.now();
-    final expiresAt = validFor != null ? createdAt.add(validFor) : null;
-
-    final credential = APIKeyCredential(
-      keyId: keyId,
-      secret: secret,
-      scope: scope,
-      createdAt: createdAt,
-      expiresAt: expiresAt,
-      active: true,
-    );
-
-    _keys[keyId] = credential;
-
-    print('✅ API Key created: $keyId');
-    print('🔐 Secret: $secret');
-    print('📊 Scope: $scope');
-
-    return credential;
+  String _extractSecret(String fullKey) {
+    final parts = fullKey.split('_');
+    return parts.last;
   }
 
-  APIKeyCredential? validateAPIKey(String keyId, String secret) {
-    final credential = _keys[keyId];
+  Future<Map<String, dynamic>> createApiKey({required String developerId, required String? keyName, String environment = 'live'}) async {
+    try {
+      final prefix = environment == 'test' ? 'ovwi_test' : 'ovwi_live';
+      final fullKey = generateApiKey(prefix: prefix);
+      final secret = _extractSecret(fullKey);
+      final secretHash = _hashSecret(secret);
 
-    if (credential == null) {
-      print('❌ API Key not found: $keyId');
-      return null;
+      final result = await connection.execute(
+        Sql.named('INSERT INTO api_keys (id, developer_id, key_prefix, key_hash, name, environment, status, created_at) VALUES (gen_random_uuid(), @developer_id, @key_prefix, @key_hash, @name, @environment, @status, NOW()) RETURNING id, created_at'),
+        parameters: {
+          'developer_id': developerId,
+          'key_prefix': prefix,
+          'key_hash': secretHash,
+          'name': keyName ?? 'Default Key',
+          'environment': environment,
+          'status': 'active',
+        }
+      );
+
+      final row = result.first;
+      return {
+        'id': row[0] as String,
+        'api_key': fullKey,
+        'key_prefix': prefix,
+        'name': keyName ?? 'Default Key',
+        'environment': environment,
+        'status': 'active',
+        'created_at': (row[1] as DateTime).toIso8601String()
+      };
+    } catch (e) {
+      throw Exception('Failed to create API key: $e');
     }
-
-    if (!credential.isValid()) {
-      print('❌ API Key expired or inactive: $keyId');
-      return null;
-    }
-
-    if (credential.secret != secret) {
-      print('❌ Invalid secret for key: $keyId');
-      return null;
-    }
-
-    print('✅ API Key validated: $keyId');
-    return credential;
   }
 
-  bool revokeAPIKey(String keyId) {
-    if (_keys.containsKey(keyId)) {
-      _keys[keyId]!.active == false;
-      print('✅ API Key revoked: $keyId');
-      return true;
+  Future<(bool, ApiKey?, String?)> validateApiKey(String fullKey) async {
+    try {
+      if (fullKey.isEmpty) return (false, null, null);
+
+      final secret = _extractSecret(fullKey);
+      final secretHash = _hashSecret(secret);
+
+      final result = await connection.execute(
+        Sql.named('SELECT id, developer_id, key_prefix, key_hash, name, environment, status, last_used_at, created_at, revoked_at FROM api_keys WHERE key_hash = @key_hash LIMIT 1'),
+        parameters: {'key_hash': secretHash}
+      );
+
+      if (result.isEmpty) return (false, null, null);
+
+      final row = result.first;
+      final apiKey = ApiKey(
+        id: row[0] as String,
+        developerId: row[1] as String,
+        keyPrefix: row[2] as String,
+        keyHash: row[3] as String,
+        name: row[4] as String?,
+        environment: row[5] as String? ?? 'live',
+        status: row[6] as String,
+        lastUsedAt: row[7] != null ? row[7] as DateTime : null,
+        createdAt: row[8] as DateTime,
+        revokedAt: row[9] != null ? row[9] as DateTime : null
+      );
+
+      if (apiKey.status != 'active') return (false, null, null);
+
+      await connection.execute(
+        Sql.named('UPDATE api_keys SET last_used_at = NOW() WHERE id = @id'),
+        parameters: {'id': apiKey.id}
+      ).catchError((e) => print('Error updating last_used: $e'));
+
+      return (true, apiKey, apiKey.developerId);
+    } catch (e) {
+      print('API key validation error: $e');
+      return (false, null, null);
     }
-    return false;
   }
 
-  List<APIKeyCredential> listAPIKeys() {
-    return _keys.values.toList();
-  }
+  Future<List<Map<String, dynamic>>> listDeveloperKeys(String developerId) async {
+    try {
+      final result = await connection.execute(
+        Sql.named('SELECT id, name, key_prefix, environment, status, last_used_at, created_at FROM api_keys WHERE developer_id = @developer_id ORDER BY created_at DESC'),
+        parameters: {'developer_id': developerId}
+      );
 
-  Map<String, dynamic> getAPIKeyStats(String keyId) {
-    final credential = _keys[keyId];
-    if (credential == null) return {};
-
-    return {
-      'keyId': keyId,
-      'scope': credential.scope,
-      'active': credential.active,
-      'isExpired': credential.isExpired(),
-      'createdAt': credential.createdAt.toIso8601String(),
-      'expiresAt': credential.expiresAt?.toIso8601String(),
-    };
+      return result.map((row) => {
+        'id': row[0] as String,
+        'name': row[1] as String?,
+        'key_prefix': row[2] as String,
+        'environment': row[3] as String,
+        'status': row[4] as String,
+        'last_used_at': row[5] != null ? (row[5] as DateTime).toIso8601String() : null,
+        'created_at': (row[6] as DateTime).toIso8601String()
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to list API keys: $e');
+    }
   }
 }
