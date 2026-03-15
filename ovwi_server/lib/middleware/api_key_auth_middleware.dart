@@ -1,61 +1,74 @@
-import 'package:shelf/shelf.dart';
+﻿import 'package:shelf/shelf.dart';
 import 'dart:convert';
-import 'package:uuid/uuid.dart';
-import '../services/api_key_service.dart';
+import 'package:crypto/crypto.dart';
 import 'package:postgres/postgres.dart';
 
-Middleware apiKeyAuthMiddleware(ApiKeyService apiKeyService) {
-  return (innerHandler) {
+class ApiKeyAuthMiddleware {
+  final Connection connection;
+
+  ApiKeyAuthMiddleware({required this.connection});
+
+  Middleware get middleware => (innerHandler) {
     return (request) async {
-      final startTime = DateTime.now();
-      final requestId = const Uuid().v4();
-
-      final isPublic = request.url.path == '/health' || 
-                 request.url.path.startsWith('/api/v1/developers') ||
-                 request.url.path.startsWith('/api/v1/keys') ||
-                 request.url.path.startsWith('/api/v1/dashboard');
-
-      if (!isPublic) {
-        final apiKeyHeader = request.headers['x-api-key'];
-
-        if (apiKeyHeader == null || apiKeyHeader.isEmpty) {
-          return _errorResponse(401, 'missing_api_key', 'API key required');
-        }
-
-        final (isValid, keyRecord, developerId) = await apiKeyService.validateApiKey(apiKeyHeader);
-
-        if (!isValid || developerId == null) {
-          return _errorResponse(401, 'invalid_api_key', 'API key invalid or revoked');
-        }
-
-        final updatedRequest = request.change(context: {
-          ...request.context,
-          'developer_id': developerId,
-          'api_key_id': keyRecord!.id,
-          'request_id': requestId,
-          'start_time': startTime,
-        });
-
-        var response = await innerHandler(updatedRequest);
-        
-        _logUsageAsync(apiKeyService.connection, developerId, keyRecord.id, request.url.path, request.method, response.statusCode, DateTime.now().difference(startTime).inMilliseconds, requestId);
-
-        return response;
-      } else {
-        final updatedRequest = request.change(context: {...request.context, 'request_id': requestId});
-        return await innerHandler(updatedRequest);
+      final apiKey = request.headers['x-api-key'];
+      
+      if (apiKey == null) {
+        return Response(401,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'success': false, 'error': {'code': 'unauthorized', 'message': 'API key required'}})
+        );
       }
+
+      final (isValid, developerId) = await validateApiKey(apiKey);
+      
+      if (!isValid) {
+        return Response(401,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'success': false, 'error': {'code': 'invalid_api_key', 'message': 'Invalid or revoked API key'}})
+        );
+      }
+
+      final newContext = {...request.context, 'developerId': developerId, 'apiKey': apiKey};
+      final updatedRequest = request.change(context: newContext);
+
+      return innerHandler(updatedRequest);
     };
   };
-}
 
-void _logUsageAsync(Connection connection, String developerId, String apiKeyId, String endpoint, String method, int statusCode, int latencyMs, String requestId) {
-  connection.execute(
-    Sql.named('INSERT INTO api_usage (api_key_id, developer_id, endpoint, method, status_code, latency_ms, request_id) VALUES (@api_key_id, @developer_id, @endpoint, @method, @status_code, @latency_ms, @request_id)'),
-    parameters: {'api_key_id': apiKeyId, 'developer_id': developerId, 'endpoint': endpoint, 'method': method, 'status_code': statusCode, 'latency_ms': latencyMs, 'request_id': requestId},
-  ).catchError((e) => print('Usage logging error: $e'));
-}
+  Future<(bool, String?)> validateApiKey(String fullKey) async {
+    try {
+      final parts = fullKey.split('_');
+      if (parts.length < 3) return (false, null);
 
-Response _errorResponse(int statusCode, String code, String message) {
-  return Response(statusCode, headers: {'Content-Type': 'application/json'}, body: jsonEncode({'success': false, 'error': {'code': code, 'message': message}}));
+      final prefix = parts.sublist(0, 2).join('_');
+      final secret = parts.sublist(2).join('_');
+      
+      if (secret.isEmpty) return (false, null);
+
+      final secretHash = sha256.convert(utf8.encode(secret)).toString();
+
+      final result = await connection.execute(
+        Sql.named('SELECT id, developer_id, key_prefix, status FROM api_keys WHERE key_hash = @key_hash AND status = @status LIMIT 1'),
+        parameters: {'key_hash': secretHash, 'status': 'active'}
+      );
+
+      if (result.isEmpty) return (false, null);
+
+      final row = result.first;
+      final storedPrefix = row[2] as String;
+      final developerId = row[1] as String;
+
+      if (storedPrefix != prefix) return (false, null);
+
+      connection.execute(
+        Sql.named('UPDATE api_keys SET last_used_at = NOW() WHERE id = @id'),
+        parameters: {'id': row[0]}
+      ).catchError((_) => null);
+
+      return (true, developerId);
+    } catch (e) {
+      print('Auth validation error: $e');
+      return (false, null);
+    }
+  }
 }
