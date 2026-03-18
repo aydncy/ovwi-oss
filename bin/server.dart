@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:postgres/postgres.dart';
@@ -134,8 +135,9 @@ Future<Response> _router(Request req) async {
 }
 
 String _generateApiKey() {
-  final rand = DateTime.now().millisecondsSinceEpoch.toString();
-  return 'ovwi_live_';
+  final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
+  return "ovwi_live_" + rand;
 }
+
 
 
