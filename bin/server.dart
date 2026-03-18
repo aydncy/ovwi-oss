@@ -90,6 +90,19 @@ Future<Response> _router(Request req) async {
     }
 
     try {
+            // ?? EMAIL CHECK (duplicate purchase)
+      final existing = await conn!.query(
+        'SELECT api_key FROM api_keys WHERE email = @email LIMIT 1',
+        substitutionValues: {'email': email},
+      );
+
+      if (existing.isNotEmpty) {
+        final existingKey = existing.first[0];
+        return Response.ok(
+          '{"ok":true,"api_key":"","plan":"","email":"","reused":true}',
+          headers: {'Content-Type': 'application/json'},
+        );
+      }
       final apiKey = _generateApiKey();
 
       int limit = 100;
@@ -98,13 +111,13 @@ Future<Response> _router(Request req) async {
 
       await conn!.query(
         '''
-        INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active)
-        VALUES (@key, @plan, 0, @limit, true)
+        INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active, email)
+        VALUES (@key, @plan, 0, @limit, true, @email)
         ''',
         substitutionValues: {
           'key': apiKey,
           'plan': plan,
-          'limit': limit,
+          'limit': limit, 'email': email,
         },
       );
 
@@ -124,4 +137,5 @@ Future<Response> _router(Request req) async {
 
   return Response.notFound('not found');
 }
+
 
