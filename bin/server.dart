@@ -8,8 +8,19 @@ String _generateApiKey() {
   return "ovwi_live_" + rand;
 }
 
+Map<String, List<int>> _rate = {};
 void main() async {
   final handler = (Request req) async {
+\n    final key = req.url.queryParameters['key'] ?? 'global';
+    final now = DateTime.now().millisecondsSinceEpoch;
+\n    _rate.putIfAbsent(key, () => []);
+    _rate[key]!.removeWhere((t) => now - t > 60000);
+    _rate[key]!.add(now);
+\n    final limit = key.startsWith('ovwi_live_') ? 120 : 5;
+    final rateLimited = _rate[key]!.length > limit;
+\n    if (rateLimited) {
+      return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
+    }
 
     if (req.url.path == 'health') {
       return Response.ok('ok');
@@ -43,3 +54,4 @@ void main() async {
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
   print('Server running on ');
 }
+
