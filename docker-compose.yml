@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  ovwi-core:
+    build: .
+    container_name: ovwi-production
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ovwi_data:/root/data
+volumes:
+  ovwi_data:
