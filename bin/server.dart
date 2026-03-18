@@ -8,17 +8,25 @@ String _generateApiKey() {
   return "ovwi_live_" + rand;
 }
 
-Map<String, List<int>> _rate = {};
+final Map<String, List<int>> _rate = {};
+
+bool isRateLimited(String key, int limit) {
+  final now = DateTime.now().millisecondsSinceEpoch;
+
+  _rate.putIfAbsent(key, () => []);
+  _rate[key]!.removeWhere((t) => now - t > 60000);
+  _rate[key]!.add(now);
+
+  return _rate[key]!.length > limit;
+}
+
 void main() async {
   final handler = (Request req) async {
-\n    final key = req.url.queryParameters['key'] ?? 'global';
-    final now = DateTime.now().millisecondsSinceEpoch;
-\n    _rate.putIfAbsent(key, () => []);
-    _rate[key]!.removeWhere((t) => now - t > 60000);
-    _rate[key]!.add(now);
-\n    final limit = key.startsWith('ovwi_live_') ? 120 : 5;
-    final rateLimited = _rate[key]!.length > limit;
-\n    if (rateLimited) {
+
+    final key = req.url.queryParameters['key'] ?? 'global';
+    final limit = key.startsWith('ovwi_live_') ? 120 : 5;
+
+    if (isRateLimited(key, limit)) {
       return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
     }
 
@@ -27,7 +35,6 @@ void main() async {
     }
 
     if (req.url.path == 'verify-key') {
-      final key = req.url.queryParameters['key'] ?? '';
       if (!key.startsWith('ovwi_live_')) {
         return Response.forbidden('invalid');
       }
@@ -54,4 +61,3 @@ void main() async {
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
   print('Server running on ');
 }
-
