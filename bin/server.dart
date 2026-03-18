@@ -74,7 +74,49 @@ Future<Response> _router(Request req) async {
       );
 
       return Response.ok('ok');
+    }
+
+  // ?? PAYMENT SUCCESS (GUMROAD)
+  if (req.url.path == 'payment/success') {
+    final email = req.url.queryParameters['email'];
+    final plan = req.url.queryParameters['plan'];
+
+    if (email == null || plan == null) {
+      return Response(400, body: 'missing params');
+    }
+
+    if (conn == null) {
+      return Response.ok('NO_DB');
+    }
+
+    try {
+      final apiKey = _generateApiKey();
+
+      int limit = 100;
+      if (plan == 'pro') limit = 10000;
+      if (plan == 'ultra') limit = 100000;
+
+      await conn!.query(
+        '''
+        INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active)
+        VALUES (@key, @plan, 0, @limit, true)
+        ''',
+        substitutionValues: {
+          'key': apiKey,
+          'plan': plan,
+          'limit': limit,
+        },
+      );
+
+      return Response.ok(
+        '{"ok":true,"api_key":"","plan":"","email":""}',
+        headers: {'Content-Type': 'application/json'},
+      );
     } catch (e) {
+      print("PAYMENT ERROR: ");
+      return Response.ok('FAIL');
+    }
+  } catch (e) {
       print("VERIFY ERROR: ");
       return Response.ok('QUERY_FAIL');
     }
@@ -82,3 +124,4 @@ Future<Response> _router(Request req) async {
 
   return Response.notFound('not found');
 }
+
