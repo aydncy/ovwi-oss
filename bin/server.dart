@@ -133,23 +133,38 @@ Future<Response> _router(Request req) async {
 
   if (exists.isNotEmpty) {
     final t = exists.first[0];
-    return Response.ok('https://ovwi-oss-production.up.railway.app/payment/success?token=' + t);
+    return Response.ok('<h1>Already activated</h1><p>Your key was already generated.</p>', headers: {'Content-Type': 'text/html'});
   }
 
-  final token = 'tok_' + (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
+  final apiKey = _generateApiKey();
+
+  int limit = 100;
+  if (plan == 'pro') limit = 10000;
+  if (plan == 'ultra') limit = 100000;
 
   await conn!.query(
-    'INSERT INTO purchase_tokens (token, plan) VALUES (@t,@p)',
-    substitutionValues: {'t': token, 'p': plan},
+    '''
+    INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active)
+    VALUES (@key, @plan, 0, @limit, true)
+    ''',
+    substitutionValues: {
+      'key': apiKey,
+      'plan': plan,
+      'limit': limit,
+    },
   );
 
   await conn!.query(
     'INSERT INTO gumroad_sales (sale_id,email,plan,token) VALUES (@id,@e,@p,@t)',
-    substitutionValues: {'id': saleId,'e': email,'p': plan,'t': token},
+    substitutionValues: {'id': saleId,'e': email,'p': plan,'t': apiKey},
   );
 
-  return Response.ok('https://ovwi-oss-production.up.railway.app/payment/success?token=' + token);
+  return Response.ok(
+    '<h1>Your API Key</h1><p style=""font-size:20px;"">' + apiKey + '</p>',
+    headers: {'Content-Type': 'text/html'},
+  );
 }
+
 return Response.notFound('not found');
 }
 
@@ -157,4 +172,5 @@ String _generateApiKey() {
   final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
   return "ovwi_live_" + rand;
 }
+
 
