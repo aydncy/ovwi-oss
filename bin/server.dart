@@ -27,7 +27,6 @@ Future<void> main() async {
   }
 
   final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router);
-
   await io.serve(handler, '0.0.0.0', port);
   print('Server running');
 }
@@ -36,72 +35,52 @@ Future<Response> _router(Request req) async {
   final path = req.url.pathSegments;
 
   if (req.url.path == 'health') {
-    return Response.ok('{"status":"ok"}',
-        headers: {'Content-Type': 'application/json'});
+    return Response.ok('{"status":"ok"}', headers: {'Content-Type': 'application/json'});
   }
 
   if (path.length == 2 && path[0] == 'verify') {
     final apiKey = path[1];
 
-    if (conn == null) {
-      return Response.ok('NO_DB');
-    }
+    if (conn == null) return Response.ok('NO_DB');
 
-    try {
-      final result = await conn!.query(
-        'SELECT usage_count, usage_limit FROM api_keys WHERE api_key = @key',
-        substitutionValues: {'key': apiKey},
-      );
+    final result = await conn!.query(
+      'SELECT usage_count, usage_limit FROM api_keys WHERE api_key = @key',
+      substitutionValues: {'key': apiKey},
+    );
 
-      if (result.isEmpty) {
-        return Response.notFound('invalid');
-      }
+    if (result.isEmpty) return Response.notFound('invalid');
 
-      final usage = result.first[0] as int;
-      final limit = result.first[1] as int;
+    final usage = result.first[0] as int;
+    final limit = result.first[1] as int;
 
-      if (usage >= limit) {
-        return Response.forbidden('limit reached');
-      }
+    if (usage >= limit) return Response.forbidden('limit reached');
 
-      await conn!.query(
-        'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
-        substitutionValues: {'key': apiKey},
-      );
+    await conn!.query(
+      'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
+      substitutionValues: {'key': apiKey},
+    );
 
-      return Response.ok('ok');
-    } catch (e) {
-      return Response.ok('QUERY_FAIL');
-    }
+    return Response.ok('ok');
   }
 
-  // ?? PAYMENT SUCCESS
   if (req.url.path == 'payment/success') {
-    final email = req.url.queryParameters['email'] ?? '';
-    final plan = req.url.queryParameters['plan'] ?? '';
+    final token = req.url.queryParameters['token'] ?? '';
 
-    if (email.isEmpty || plan.isEmpty) {
-      return Response(400, body: 'missing params');
-    }
-
-    if (conn == null) {
-      return Response.ok('NO_DB');
-    }
+    if (token.isEmpty) return Response(400, body: 'missing token');
+    if (conn == null) return Response.ok('NO_DB');
 
     try {
-      // duplicate kontrol
-      final existing = await conn!.query(
-        'SELECT api_key FROM api_keys WHERE email = @email LIMIT 1',
-        substitutionValues: {'email': email},
+      final tokenCheck = await conn!.query(
+        'SELECT plan, used FROM purchase_tokens WHERE token = @token LIMIT 1',
+        substitutionValues: {'token': token},
       );
 
-      if (existing.isNotEmpty) {
-        final existingKey = existing.first[0];
-        return Response.ok(
-        "{\"ok\":true,\"api_key\":\"" + existingKey + "\",\"plan\":\"" + plan + "\",\"email\":\"" + email + "\",\"reused\":true}",
-        headers: {"Content-Type": "application/json"},
-      );
-      }
+      if (tokenCheck.isEmpty) return Response.forbidden('invalid token');
+
+      final used = tokenCheck.first[1] as bool;
+      final plan = tokenCheck.first[0] as String;
+
+      if (used) return Response.forbidden('already used');
 
       final apiKey = _generateApiKey();
 
@@ -111,19 +90,23 @@ Future<Response> _router(Request req) async {
 
       await conn!.query(
         '''
-        INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active, email)
-        VALUES (@key, @plan, 0, @limit, true, @email)
+        INSERT INTO api_keys (api_key, plan, usage_count, usage_limit, is_active)
+        VALUES (@key, @plan, 0, @limit, true)
         ''',
         substitutionValues: {
           'key': apiKey,
           'plan': plan,
           'limit': limit,
-          'email': email,
         },
       );
 
+      await conn!.query(
+        'UPDATE purchase_tokens SET used = true WHERE token = @token',
+        substitutionValues: {'token': token},
+      );
+
       return Response.ok(
-        "{\"ok\":true,\"api_key\":\"" + apiKey + "\",\"plan\":\"" + plan + "\",\"email\":\"" + email + "\",\"reused\":false}",
+        "{\"ok\":true,\"api_key\":\"" + apiKey + "\",\"plan\":\"" + plan + "\"}",
         headers: {"Content-Type": "application/json"},
       );
     } catch (e) {
@@ -138,6 +121,3 @@ String _generateApiKey() {
   final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
   return "ovwi_live_" + rand;
 }
-
-
-
