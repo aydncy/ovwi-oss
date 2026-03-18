@@ -220,7 +220,43 @@ Future<Response> _router(Request req) async {
     }
   }
 
-  return Response.notFound('not found');
+  if (req.url.path == 'verify-key' && req.method == 'GET') {
+  final apiKey = req.url.queryParameters['key'] ?? '';
+
+  if (apiKey.isEmpty) return Response(400, body: 'missing key');
+  if (conn == null) return Response.ok('NO_DB');
+
+  try {
+    final keyData = await conn!.query(
+      'SELECT usage_count, usage_limit, plan, is_active FROM api_keys WHERE api_key = @key LIMIT 1',
+      substitutionValues: {'key': apiKey},
+    );
+
+    if (keyData.isEmpty) return Response.notFound('invalid');
+
+    final usage = keyData.first[0] as int;
+    final limit = keyData.first[1] as int;
+    final plan = keyData.first[2].toString();
+    final isActive = keyData.first[3] as bool;
+
+    if (!isActive) return Response.forbidden('inactive');
+    if (usage >= limit) return Response.forbidden('limit reached');
+
+    final rateLimited = await _hitKeyRateLimit(apiKey, plan);
+    if (rateLimited) return Response(429, body: 'rate limited');
+
+    await conn!.query(
+      'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
+      substitutionValues: {'key': apiKey},
+    );
+
+    return Response.ok('ok');
+  } catch (e) {
+    return Response.ok('ERROR');
+  }
+}
+
+return Response.notFound('not found');
 }
 
 Future<bool> _hitIpRateLimit(String ip, int windowSeconds, int maxRequests) async {
@@ -282,4 +318,48 @@ String _clientIp(Request req) {
 String _generateApiKey() {
   final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
   return "ovwi_live_" + rand;
+}
+
+Future<bool> _hitKeyRateLimit(String key, String plan) async {
+  if (conn == null) return false;
+
+  int max = 60;
+  if (plan == 'pro') max = 120;
+  if (plan == 'ultra') max = 300;
+
+  final result = await conn!.query(
+    'SELECT request_count, window_start FROM key_rate_limits WHERE api_key = @key LIMIT 1',
+    substitutionValues: {'key': key},
+  );
+
+  final now = DateTime.now().toUtc();
+
+  if (result.isEmpty) {
+    await conn!.query(
+      'INSERT INTO key_rate_limits (api_key, request_count, window_start) VALUES (@key, 1, @now)',
+      substitutionValues: {'key': key, 'now': now},
+    );
+    return false;
+  }
+
+  final count = result.first[0] as int;
+  final windowStart = (result.first[1] as DateTime).toUtc();
+  final diff = now.difference(windowStart).inSeconds;
+
+  if (diff >= 60) {
+    await conn!.query(
+      'UPDATE key_rate_limits SET request_count = 1, window_start = @now WHERE api_key = @key',
+      substitutionValues: {'key': key, 'now': now},
+    );
+    return false;
+  }
+
+  if (count >= max) return true;
+
+  await conn!.query(
+    'UPDATE key_rate_limits SET request_count = request_count + 1 WHERE api_key = @key',
+    substitutionValues: {'key': key},
+  );
+
+  return false;
 }
