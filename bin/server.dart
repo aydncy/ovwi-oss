@@ -41,5 +41,5 @@ void main() async {
   };
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
-  print('Server running on \');
+  print('Server running on ');
 }
