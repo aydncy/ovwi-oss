@@ -55,11 +55,25 @@ void main() async {
       );
     }
 
-    return Response.notFound('not found');
+    
+if (req.url.path == 'gumroad/webhook' && req.method == 'POST') {
+  final body = await req.readAsString();
+  final data = Uri.splitQueryString(body);
+
+  final apiKey = "ovwi_live_" + DateTime.now().microsecondsSinceEpoch.toString();
+
+  return Response.ok(
+    '<h1>Your API Key</h1><p style="font-size:20px;">' + apiKey + '</p>',
+    headers: {'Content-Type': 'text/html'},
+  );
+}
+
+return Response.notFound('not found');
   };
 
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
   print('Server running on ');
 }
+
 
 
