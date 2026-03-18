@@ -323,7 +323,7 @@ String _generateApiKey() {
 Future<bool> _hitKeyRateLimit(String key, String plan) async {
   if (conn == null) return false;
 
-  int max = 60;
+  int max = 10;
   if (plan == 'pro') max = 120;
   if (plan == 'ultra') max = 300;
 
@@ -363,3 +363,4 @@ Future<bool> _hitKeyRateLimit(String key, String plan) async {
 
   return false;
 }
+
