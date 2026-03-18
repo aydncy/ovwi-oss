@@ -97,9 +97,9 @@ Future<Response> _router(Request req) async {
       if (existing.isNotEmpty) {
         final existingKey = existing.first[0];
         return Response.ok(
-          '{"ok":true,"api_key":"","plan":"","email":"","reused":true}',
-          headers: {'Content-Type': 'application/json'},
-        );
+        "{\"ok\":true,\"api_key\":\"" + existingKey + "\",\"plan\":\"" + plan + "\",\"email\":\"" + email + "\",\"reused\":true}",
+        headers: {"Content-Type": "application/json"},
+      );
       }
 
       final apiKey = _generateApiKey();
@@ -122,8 +122,8 @@ Future<Response> _router(Request req) async {
       );
 
       return Response.ok(
-        '{"ok":true,"api_key":"","plan":"","email":"","reused":false}',
-        headers: {'Content-Type': 'application/json'},
+        "{\"ok\":true,\"api_key\":\"" + apiKey + "\",\"plan\":\"" + plan + "\",\"email\":\"" + email + "\",\"reused\":false}",
+        headers: {"Content-Type": "application/json"},
       );
     } catch (e) {
       return Response.ok('FAIL');
@@ -137,4 +137,5 @@ String _generateApiKey() {
   final rand = DateTime.now().millisecondsSinceEpoch.toString();
   return 'ovwi_live_';
 }
+
 
