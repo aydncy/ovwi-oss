@@ -243,7 +243,7 @@ Future<Response> _router(Request req) async {
     if (usage >= limit) return Response.forbidden('limit reached');
 
     final rateLimited = await _hitKeyRateLimit(apiKey, plan);
-    if (rateLimited) return Response(429, body: 'rate limited');
+    if (rateLimited) return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
 
     await conn!.query(
       'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
@@ -354,7 +354,7 @@ Future<bool> _hitKeyRateLimit(String key, String plan) async {
     return false;
   }
 
-  if (count >= max) return true;
+  if (count >= max) throw Exception('RATE_LIMIT');
 
   await conn!.query(
     'UPDATE key_rate_limits SET request_count = request_count + 1 WHERE api_key = @key',
@@ -363,4 +363,5 @@ Future<bool> _hitKeyRateLimit(String key, String plan) async {
 
   return false;
 }
+
 
