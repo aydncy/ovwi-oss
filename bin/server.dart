@@ -9,17 +9,29 @@ late PostgreSQLConnection? conn;
 
 Future<void> initDb() async {
   try {
+    final url = Platform.environment['DATABASE_URL'];
+
+    if (url == null) {
+      print('NO DATABASE_URL');
+      conn = null;
+      return;
+    }
+
+    final uri = Uri.parse(url);
+
     conn = PostgreSQLConnection(
-      Platform.environment['DB_HOST'] ?? '',
-      int.tryParse(Platform.environment['DB_PORT'] ?? '5432') ?? 5432,
-      Platform.environment['DB_NAME'] ?? '',
-      username: Platform.environment['DB_USER'],
-      password: Platform.environment['DB_PASS'],
+      uri.host,
+      uri.port,
+      uri.path.replaceFirst('/', ''),
+      username: uri.userInfo.split(':')[0],
+      password: uri.userInfo.split(':')[1],
+      useSSL: true,
     );
+
     await conn!.open();
     print('DB OK');
   } catch (e) {
-    print('DB FAIL');
+    print('DB FAIL: $e');
     conn = null;
   }
 }
@@ -65,6 +77,7 @@ void main() async {
 
       return Response.ok('ok');
     } catch (e) {
+      print('VERIFY ERROR: $e');
       return Response(500, body: 'err');
     }
   });
@@ -74,6 +87,4 @@ void main() async {
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   await io.serve(handler, '0.0.0.0', port);
-
-  print('LIVE');
 }
