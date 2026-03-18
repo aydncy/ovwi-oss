@@ -1,10 +1,8 @@
-name: ovwi_oss_main
-description: OVWI usage and billing engine
-version: 1.0.0
-
+name: ovwi
 environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
-  shelf: ^1.4.1
-  shelf_router: ^1.1.4
+  shelf: ^1.4.0
+  shelf_router: ^1.1.0
+  postgres: ^2.6.0
