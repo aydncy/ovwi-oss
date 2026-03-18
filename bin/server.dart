@@ -165,6 +165,44 @@ Future<Response> _router(Request req) async {
   );
 }
 
+if (req.url.path == 'dashboard') {
+  if (conn == null) return Response.ok('NO_DB');
+
+  final key = req.url.queryParameters['key'] ?? '';
+
+  if (key.isEmpty) {
+    return Response.ok('<h1>Missing API Key</h1>', headers: {'Content-Type': 'text/html'});
+  }
+
+  try {
+    final result = await conn!.query(
+      'SELECT usage_count, usage_limit, plan FROM api_keys WHERE api_key = @key LIMIT 1',
+      substitutionValues: {'key': key},
+    );
+
+    if (result.isEmpty) {
+      return Response.ok('<h1>Invalid API Key</h1>', headers: {'Content-Type': 'text/html'});
+    }
+
+    final usage = result.first[0];
+    final limit = result.first[1];
+    final plan = result.first[2];
+
+    final percent = ((usage / limit) * 100).toStringAsFixed(2);
+
+    return Response.ok(
+      '<h1>OVWI Dashboard</h1>'
+      '<p><b>API Key:</b> ' + key + '</p>'
+      '<p><b>Plan:</b> ' + plan.toString() + '</p>'
+      '<p><b>Usage:</b> ' + usage.toString() + ' / ' + limit.toString() + '</p>'
+      '<p><b>Usage %:</b> ' + percent + '%</p>',
+      headers: {'Content-Type': 'text/html'},
+    );
+  } catch (e) {
+    return Response.ok('ERROR');
+  }
+}
+
 return Response.notFound('not found');
 }
 
@@ -172,5 +210,6 @@ String _generateApiKey() {
   final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
   return "ovwi_live_" + rand;
 }
+
 
 
