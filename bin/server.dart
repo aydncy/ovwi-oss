@@ -114,10 +114,47 @@ Future<Response> _router(Request req) async {
     }
   }
 
-  return Response.notFound('not found');
+  if (req.url.path == 'gumroad/webhook' && req.method == 'POST') {
+  if (conn == null) return Response.ok('NO_DB');
+
+  final body = await req.readAsString();
+  final data = Uri.splitQueryString(body);
+
+  final saleId = data['sale_id'] ?? '';
+  final email = data['email'] ?? '';
+  final plan = (data['variants'] ?? 'pro').toLowerCase();
+
+  if (saleId.isEmpty) return Response(400, body: 'no sale');
+
+  final exists = await conn!.query(
+    'SELECT token FROM gumroad_sales WHERE sale_id = @id LIMIT 1',
+    substitutionValues: {'id': saleId},
+  );
+
+  if (exists.isNotEmpty) {
+    final t = exists.first[0];
+    return Response.ok('https://ovwi-oss-production.up.railway.app/payment/success?token=' + t);
+  }
+
+  final token = 'tok_' + (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
+
+  await conn!.query(
+    'INSERT INTO purchase_tokens (token, plan) VALUES (@t,@p)',
+    substitutionValues: {'t': token, 'p': plan},
+  );
+
+  await conn!.query(
+    'INSERT INTO gumroad_sales (sale_id,email,plan,token) VALUES (@id,@e,@p,@t)',
+    substitutionValues: {'id': saleId,'e': email,'p': plan,'t': token},
+  );
+
+  return Response.ok('https://ovwi-oss-production.up.railway.app/payment/success?token=' + token);
+}
+return Response.notFound('not found');
 }
 
 String _generateApiKey() {
   final rand = (DateTime.now().microsecondsSinceEpoch ^ Random().nextInt(999999)).toString();
   return "ovwi_live_" + rand;
 }
+
