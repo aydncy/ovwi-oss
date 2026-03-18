@@ -3,25 +3,26 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:postgres/postgres.dart';
 
-late PostgreSQLConnection conn;
+PostgreSQLConnection? conn;
 
 Future<void> main() async {
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
 
   try {
     conn = PostgreSQLConnection(
-      Platform.environment['DB_HOST']!,
-      int.parse(Platform.environment['DB_PORT']!),
-      Platform.environment['DB_NAME']!,
+      Platform.environment['DB_HOST'] ?? '',
+      int.parse(Platform.environment['DB_PORT'] ?? '5432'),
+      Platform.environment['DB_NAME'] ?? '',
       username: Platform.environment['DB_USER'],
       password: Platform.environment['DB_PASS'],
       useSSL: true,
     );
 
-    await conn.open();
+    await conn!.open().timeout(Duration(seconds: 3));
     print("DB CONNECTED");
   } catch (e) {
     print("DB FAILED: ");
+    conn = null;
   }
 
   final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router);
@@ -45,8 +46,13 @@ Future<Response> _router(Request req) async {
       return Response.ok('OK_WORKING');
     }
 
+    // ?? DB YOKSA CRASH YOK
+    if (conn == null) {
+      return Response.ok('NO_DB');
+    }
+
     try {
-      final result = await conn.query(
+      final result = await conn!.query(
         'SELECT usage_count, usage_limit FROM api_keys WHERE api_key = @key',
         substitutionValues: {'key': apiKey},
       );
@@ -62,7 +68,7 @@ Future<Response> _router(Request req) async {
         return Response.forbidden('limit reached');
       }
 
-      await conn.query(
+      await conn!.query(
         'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
         substitutionValues: {'key': apiKey},
       );
@@ -70,7 +76,7 @@ Future<Response> _router(Request req) async {
       return Response.ok('ok');
     } catch (e) {
       print("VERIFY ERROR: ");
-      return Response.ok('OK_FALLBACK');
+      return Response.ok('QUERY_FAIL');
     }
   }
 
