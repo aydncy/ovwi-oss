@@ -1,7 +1,4 @@
 {
-  "build": {
-    "builder": "NIXPACKS"
-  },
   "deploy": {
     "startCommand": "dart run bin/server.dart"
   }
