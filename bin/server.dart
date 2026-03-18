@@ -10,23 +10,29 @@ Response _json(body) =>
 
 Future<PostgreSQLConnection?> connectDb() async {
   try {
-    final url = Platform.environment['DATABASE_URL'];
-    if (url == null) return null;
+    final host = Platform.environment['DB_HOST'];
+    final port = int.parse(Platform.environment['DB_PORT'] ?? '5432');
+    final db = Platform.environment['DB_NAME'];
+    final user = Platform.environment['DB_USER'];
+    final pass = Platform.environment['DB_PASS'];
 
-    final uri = Uri.parse(url);
+    if (host == null || db == null || user == null || pass == null) {
+      return null;
+    }
 
     final conn = PostgreSQLConnection(
-      uri.host,
-      uri.port,
-      uri.path.replaceFirst('/', ''),
-      username: uri.userInfo.split(':')[0],
-      password: uri.userInfo.split(':')[1],
+      host,
+      port,
+      db,
+      username: user,
+      password: pass,
       useSSL: true,
     );
 
     await conn.open().timeout(Duration(seconds: 3));
     return conn;
-  } catch (_) {
+  } catch (e) {
+    print("DB ERROR: $e");
     return null;
   }
 }
@@ -42,7 +48,7 @@ void main() async {
     final conn = await connectDb();
 
     if (conn == null) {
-      return Response.ok('ok'); // fallback
+      return Response.ok('fallback_ok');
     }
 
     try {
@@ -68,15 +74,16 @@ void main() async {
       );
 
       return Response.ok('ok');
-    } catch (_) {
-      return Response.ok('ok'); // crash yok
+    } catch (e) {
+      print("QUERY ERROR: $e");
+      return Response.ok('safe_ok');
     } finally {
       await conn.close();
     }
   });
 
   final handler =
-    const Pipeline().addMiddleware(logRequests()).addHandler(router);
+      const Pipeline().addMiddleware(logRequests()).addHandler(router);
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   await io.serve(handler, '0.0.0.0', port);
