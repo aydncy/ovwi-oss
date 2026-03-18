@@ -216,7 +216,7 @@ Future<Response> _router(Request req) async {
         headers: {'Content-Type': 'text/html'},
       );
     } catch (e) {
-      return Response.ok('ERROR');
+      return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
     }
   }
 
@@ -243,7 +243,7 @@ Future<Response> _router(Request req) async {
     if (usage >= limit) return Response.forbidden('limit reached');
 
     final rateLimited = await _hitKeyRateLimit(apiKey, plan);
-    if (rateLimited) return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
+    if (rateLimited) { return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'}); });
 
     await conn!.query(
       'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
@@ -252,7 +252,7 @@ Future<Response> _router(Request req) async {
 
     return Response.ok('ok');
   } catch (e) {
-    return Response.ok('ERROR');
+    return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
   }
 }
 
@@ -363,5 +363,7 @@ Future<bool> _hitKeyRateLimit(String key, String plan) async {
 
   return false;
 }
+
+
 
 
