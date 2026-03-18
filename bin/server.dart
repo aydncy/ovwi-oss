@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -8,7 +9,7 @@ import 'package:shelf_router/shelf_router.dart';
 Response _json(body) =>
   Response.ok(jsonEncode(body), headers: {'content-type': 'application/json'});
 
-Future<PostgreSQLConnection?> connectDb() async {
+void fireAndForgetDb(String key) async {
   try {
     final conn = PostgreSQLConnection(
       'nozomi.proxy.rlwy.net',
@@ -19,11 +20,16 @@ Future<PostgreSQLConnection?> connectDb() async {
       useSSL: true,
     );
 
-    await conn.open().timeout(Duration(seconds: 3));
-    return conn;
+    await conn.open().timeout(Duration(seconds: 2));
+
+    await conn.query(
+      'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
+      substitutionValues: {'key': key},
+    );
+
+    await conn.close();
   } catch (e) {
-    print("DB ERROR: $e");
-    return null;
+    print("DB BACKGROUND ERROR: $e");
   }
 }
 
@@ -34,42 +40,11 @@ void main() async {
     return _json({'status': 'ok'});
   });
 
-  router.get('/verify/<key>', (Request req, String key) async {
-    final conn = await connectDb();
+  router.get('/verify/<key>', (Request req, String key) {
+    // ?? hemen cevap ver
+    Future(() => fireAndForgetDb(key));
 
-    if (conn == null) {
-      return Response.ok('fallback_ok');
-    }
-
-    try {
-      final result = await conn.query(
-        'SELECT usage_count, usage_limit FROM api_keys WHERE api_key = @key',
-        substitutionValues: {'key': key},
-      );
-
-      if (result.isEmpty) {
-        return Response(401, body: 'invalid');
-      }
-
-      final usage = result.first[0] as int;
-      final limit = result.first[1] as int;
-
-      if (usage >= limit) {
-        return Response(402, body: 'limit');
-      }
-
-      await conn.query(
-        'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
-        substitutionValues: {'key': key},
-      );
-
-      return Response.ok('ok');
-    } catch (e) {
-      print("QUERY ERROR: $e");
-      return Response.ok('safe_ok');
-    } finally {
-      await conn.close();
-    }
+    return Response.ok('ok');
   });
 
   final handler =
