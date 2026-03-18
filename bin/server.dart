@@ -10,22 +10,12 @@ Response _json(body) =>
 
 Future<PostgreSQLConnection?> connectDb() async {
   try {
-    final host = Platform.environment['DB_HOST'];
-    final port = int.parse(Platform.environment['DB_PORT'] ?? '5432');
-    final db = Platform.environment['DB_NAME'];
-    final user = Platform.environment['DB_USER'];
-    final pass = Platform.environment['DB_PASS'];
-
-    if (host == null || db == null || user == null || pass == null) {
-      return null;
-    }
-
     final conn = PostgreSQLConnection(
-      host,
-      port,
-      db,
-      username: user,
-      password: pass,
+      'nozomi.proxy.rlwy.net',
+      44301,
+      'railway',
+      username: 'postgres',
+      password: 'oPBSQKnLeMHYHqYqWQfejsyjcPxZhiPJ',
       useSSL: true,
     );
 
