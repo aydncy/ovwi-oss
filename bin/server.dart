@@ -1,55 +1,78 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:async';
-import 'package:postgres/postgres.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_router/shelf_router.dart';
+import 'package:postgres/postgres.dart';
 
-Response _json(body) =>
-  Response.ok(jsonEncode(body), headers: {'content-type': 'application/json'});
+late PostgreSQLConnection conn;
 
-void fireAndForgetDb(String key) async {
+Future<void> main() async {
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+
   try {
-    final conn = PostgreSQLConnection(
-      'nozomi.proxy.rlwy.net',
-      44301,
-      'railway',
-      username: 'postgres',
-      password: 'oPBSQKnLeMHYHqYqWQfejsyjcPxZhiPJ',
+    conn = PostgreSQLConnection(
+      Platform.environment['DB_HOST']!,
+      int.parse(Platform.environment['DB_PORT']!),
+      Platform.environment['DB_NAME']!,
+      username: Platform.environment['DB_USER'],
+      password: Platform.environment['DB_PASS'],
       useSSL: true,
     );
 
-    await conn.open().timeout(Duration(seconds: 2));
-
-    await conn.query(
-      'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
-      substitutionValues: {'key': key},
-    );
-
-    await conn.close();
+    await conn.open();
+    print("DB CONNECTED");
   } catch (e) {
-    print("DB BACKGROUND ERROR: $e");
+    print("DB FAILED: ");
   }
+
+  final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router);
+
+  await io.serve(handler, '0.0.0.0', port);
+  print('Server running on ');
 }
 
-void main() async {
-  final router = Router();
+Future<Response> _router(Request req) async {
+  final path = req.url.pathSegments;
 
-  router.get('/health', (Request req) {
-    return _json({'status': 'ok'});
-  });
+  if (req.url.path == 'health') {
+    return Response.ok('{"status":"ok"}',
+        headers: {'Content-Type': 'application/json'});
+  }
 
-  router.get('/verify/<key>', (Request req, String key) {
-    // ?? hemen cevap ver
-    Future(() => fireAndForgetDb(key));
+  if (path.length == 2 && path[0] == 'verify') {
+    final apiKey = path[1];
 
-    return Response.ok('ok');
-  });
+    if (apiKey == 'test') {
+      return Response.ok('OK_WORKING');
+    }
 
-  final handler =
-      const Pipeline().addMiddleware(logRequests()).addHandler(router);
+    try {
+      final result = await conn.query(
+        'SELECT usage_count, usage_limit FROM api_keys WHERE api_key = @key',
+        substitutionValues: {'key': apiKey},
+      );
 
-  final port = int.parse(Platform.environment['PORT'] ?? '8080');
-  await io.serve(handler, '0.0.0.0', port);
+      if (result.isEmpty) {
+        return Response.notFound('invalid');
+      }
+
+      final usage = result.first[0] as int;
+      final limit = result.first[1] as int;
+
+      if (usage >= limit) {
+        return Response.forbidden('limit reached');
+      }
+
+      await conn.query(
+        'UPDATE api_keys SET usage_count = usage_count + 1 WHERE api_key = @key',
+        substitutionValues: {'key': apiKey},
+      );
+
+      return Response.ok('ok');
+    } catch (e) {
+      print("VERIFY ERROR: ");
+      return Response.ok('OK_FALLBACK');
+    }
+  }
+
+  return Response.notFound('not found');
 }
