@@ -18,17 +18,17 @@ Future<void> main() async {
       useSSL: true,
     );
 
-    await conn!.open().timeout(Duration(seconds: 3));
+    await conn!.open();
     print("DB CONNECTED");
   } catch (e) {
-    print("DB FAILED: ");
+    print("DB FAILED");
     conn = null;
   }
 
   final handler = Pipeline().addMiddleware(logRequests()).addHandler(_router);
 
   await io.serve(handler, '0.0.0.0', port);
-  print('Server running on ');
+  print('Server running');
 }
 
 Future<Response> _router(Request req) async {
@@ -42,11 +42,6 @@ Future<Response> _router(Request req) async {
   if (path.length == 2 && path[0] == 'verify') {
     final apiKey = path[1];
 
-    if (apiKey == 'test') {
-      return Response.ok('OK_WORKING');
-    }
-
-    // ?? DB YOKSA CRASH YOK
     if (conn == null) {
       return Response.ok('NO_DB');
     }
@@ -74,14 +69,17 @@ Future<Response> _router(Request req) async {
       );
 
       return Response.ok('ok');
+    } catch (e) {
+      return Response.ok('QUERY_FAIL');
     }
+  }
 
-  // ?? PAYMENT SUCCESS (GUMROAD)
+  // ?? PAYMENT SUCCESS
   if (req.url.path == 'payment/success') {
-    final email = req.url.queryParameters['email'];
-    final plan = req.url.queryParameters['plan'];
+    final email = req.url.queryParameters['email'] ?? '';
+    final plan = req.url.queryParameters['plan'] ?? '';
 
-    if (email == null || plan == null) {
+    if (email.isEmpty || plan.isEmpty) {
       return Response(400, body: 'missing params');
     }
 
@@ -90,7 +88,7 @@ Future<Response> _router(Request req) async {
     }
 
     try {
-            // ?? EMAIL CHECK (duplicate purchase)
+      // duplicate kontrol
       final existing = await conn!.query(
         'SELECT api_key FROM api_keys WHERE email = @email LIMIT 1',
         substitutionValues: {'email': email},
@@ -103,6 +101,7 @@ Future<Response> _router(Request req) async {
           headers: {'Content-Type': 'application/json'},
         );
       }
+
       final apiKey = _generateApiKey();
 
       int limit = 100;
@@ -117,25 +116,24 @@ Future<Response> _router(Request req) async {
         substitutionValues: {
           'key': apiKey,
           'plan': plan,
-          'limit': limit, 'email': email,
+          'limit': limit,
+          'email': email,
         },
       );
 
       return Response.ok(
-        '{"ok":true,"api_key":"","plan":"","email":""}',
+        '{"ok":true,"api_key":"","plan":"","email":"","reused":false}',
         headers: {'Content-Type': 'application/json'},
       );
     } catch (e) {
-      print("PAYMENT ERROR: ");
       return Response.ok('FAIL');
-    }
-  } catch (e) {
-      print("VERIFY ERROR: ");
-      return Response.ok('QUERY_FAIL');
     }
   }
 
   return Response.notFound('not found');
 }
 
-
+String _generateApiKey() {
+  final rand = DateTime.now().millisecondsSinceEpoch.toString();
+  return 'ovwi_live_';
+}
