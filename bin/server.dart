@@ -1,4 +1,5 @@
-﻿import 'dart:io';
+﻿import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -31,6 +32,24 @@ void main() async {
     }
 
     if (req.url.path == 'health') {
+      if (req.url.path == 'payment/success' && req.method == 'POST') {
+  final body = await req.readAsString();
+  final data = jsonDecode(body);
+
+  final email = data['email'];
+  final plan = data['plan'] ?? 'pro';
+
+  if (email == null) {
+    return Response(400, body: 'missing email');
+  }
+
+  final apiKey = 'ovwi_live_' + DateTime.now().millisecondsSinceEpoch.toString();
+
+  return Response.ok(
+    jsonEncode({'api_key': apiKey}),
+    headers: {'Content-Type': 'application/json'},
+  );
+}
       return Response.ok('ok');
     }
 
