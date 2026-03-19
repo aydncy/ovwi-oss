@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:shelf/shelf.dart';
@@ -31,17 +31,16 @@ void main() async {
       return Response(302, headers: {'Location': 'https://gumroad.com/l/ovwi-pro'});
     }
 
-    if (req.url.path == 'health') {
-      if (req.url.path == 'payment/success' && req.method == 'POST') {
-  final body = await req.readAsString();
-  final data = jsonDecode(body);
+    
 
-  final email = data['email'];
-  final plan = data['plan'] ?? 'pro';
+if (req.url.path == 'create-key' && req.method == 'POST') {
+  final apiKey = 'ovwi_live_' + DateTime.now().millisecondsSinceEpoch.toString();
+  return Response.ok(
+    jsonEncode({'api_key': apiKey}),
+    headers: {'Content-Type': 'application/json'},
+  );
+}
 
-  if (email == null) {
-    return Response(400, body: 'missing email');
-  }
 
   final apiKey = 'ovwi_live_' + DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -93,6 +92,7 @@ return Response.notFound('not found');
   final server = await io.serve(handler, InternetAddress.anyIPv4, 8080);
   print('Server running on ');
 }
+
 
 
 
