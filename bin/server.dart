@@ -6,36 +6,38 @@ import 'package:http/http.dart' as http;
 
 Future<Response> handler(Request req) async {
 
-  // HEALTH
   if (req.url.path == 'health') {
     return Response.ok('ok');
   }
 
-  // GUMROAD WEBHOOK
   if (req.url.path == 'webhook/gumroad' && req.method == 'POST') {
-    final body = await req.readAsString();
-    final data = jsonDecode(body);
+    try {
+      final body = await req.readAsString();
+      final data = jsonDecode(body);
 
-    final email = data['email'];
+      final email = data['email'] ?? 'fallback@test.com';
 
-    final apiKey = 'ovwi_live_' + DateTime.now().millisecondsSinceEpoch.toString();
+      final apiKey = 'ovwi_live_' + DateTime.now().millisecondsSinceEpoch.toString();
 
-    // RESEND EMAIL
-    await http.post(
-      Uri.parse('https://api.resend.com/emails'),
-      headers: {
-        'Authorization': 'Bearer re_cpdRkugz_Ph1E72bb94Nj1XCZe3YyioXS,
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        "from": "OVWI <onboarding@resend.dev>",
-        "to": [email],
-        "subject": "Your API Key",
-        "html": "<strong>Your API Key:</strong><br><br>$apiKey"
-      }),
-    );
+      await http.post(
+        Uri.parse('https://api.resend.com/emails'),
+        headers: {
+          'Authorization': 'Bearer re_cpdRkugz_Ph1E72bb94Nj1XCZe3YyioXS,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "from": "OVWI <onboarding@resend.dev>",
+          "to": [email],
+          "subject": "Your API Key",
+          "html": "<strong>Your API Key:</strong><br><br>$apiKey"
+        }),
+      );
 
-    return Response.ok(jsonEncode({"ok": true}), headers: {'Content-Type': 'application/json'});
+      return Response.ok(jsonEncode({"ok": true}), headers: {'Content-Type': 'application/json'});
+
+    } catch (e) {
+      return Response.internalServerError(body: e.toString());
+    }
   }
 
   return Response.notFound('not found');
